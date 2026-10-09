@@ -42,6 +42,7 @@ function spyRng(seed: string): { rng: Rng; labels: string[] } {
   const base = makeRng(seed);
   const labels: string[] = [];
   const rng: Rng = {
+    seed: base.seed,
     next: () => base.next(),
     int: (n) => base.int(n),
     fork: (label) => {

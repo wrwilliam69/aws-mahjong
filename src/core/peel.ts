@@ -12,8 +12,9 @@ export type PeelResult = { order: Pair[] } | { error: PeelError };
 /** Pesos enteros por cubeta de distancia: [pegada, ≤2, ≤3, >3] (§7.4). */
 export type DistWeights = readonly [number, number, number, number];
 
-/** Por ahora solo lleva distWeights; el resto de campos de §12 llega en otras tareas. */
+/** Por ahora lleva tier (opcional) y distWeights; el resto de campos de §12 llega en otras tareas. */
 export interface TierConfig {
+  tier?: TierId;
   distWeights: DistWeights;
 }
 

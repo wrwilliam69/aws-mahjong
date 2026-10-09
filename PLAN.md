@@ -150,7 +150,7 @@ Correcciones que pidió la revisión de las tareas 1 a 5. No agregues funciones 
 
 ---
 
-### [ ] Tarea 7 — Generador de tableros (versión simple)
+### [x] Tarea 7 — Generador de tableros (versión simple)
 
 **Lee:** §7.2 y §7.3.
 

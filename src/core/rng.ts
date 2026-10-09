@@ -2,6 +2,8 @@
 // Nunca se usa el generador global de JS: toda semilla pasa por makeRng y sus fork(label).
 
 export interface Rng {
+  /** Semilla base de la que nace esta instancia (para fork, es `base|label`). */
+  readonly seed: string;
   next(): number;
   int(n: number): number;
   fork(label: string): Rng;
@@ -43,6 +45,7 @@ export function makeRng(seed: string | number): Rng {
   const base = typeof seed === 'number' ? `#${seed}` : seed;
   const next = mulberry32(stringToSeed(base));
   return {
+    seed: base,
     next,
     int(n: number): number {
       if (!Number.isInteger(n) || n <= 0) {
