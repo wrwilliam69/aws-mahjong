@@ -164,7 +164,10 @@ export function assign(
   assertOrder(g, order);
   assertServices(services, order.length);
 
-  const svc = shuffle(services, rng);
+  // Regla 4 de §11.4: se ordena por id antes de sortear, sobre una copia y con
+  // comparador simple (nunca localeCompare, que depende del dispositivo).
+  const ordenados = [...services].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const svc = shuffle(ordenados, rng);
   let best: TileSpec[] | null = null;
   let bestDist = Number.POSITIVE_INFINITY;
 

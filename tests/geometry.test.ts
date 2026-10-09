@@ -130,6 +130,18 @@ describe('normalización de coordenadas negativas (§3.4)', () => {
   });
 });
 
+describe('buildGeometry: límite de 30 fichas', () => {
+  it('31 fichas ⇒ RangeError', () => {
+    const slots: Slot[] = Array.from({ length: 31 }, (_, i): Slot => [2 * i, 0, 0]);
+    expect(() => buildGeometry(slots)).toThrow(RangeError);
+  });
+
+  it('30 fichas se construye', () => {
+    const slots: Slot[] = Array.from({ length: 30 }, (_, i): Slot => [2 * i, 0, 0]);
+    expect(buildGeometry(slots).n).toBe(30);
+  });
+});
+
 describe('mirror (§4.4)', () => {
   it('espejo horizontal: x\' = maxX − x, conservando el orden', () => {
     const slots: Slot[] = [[0, 0, 0], [2, 0, 0], [4, 0, 0]];

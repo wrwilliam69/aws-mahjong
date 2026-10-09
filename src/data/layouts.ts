@@ -28,7 +28,9 @@ const T1B: Template = {
   tags: ['plano', '1-capa', 'sin-medias'],
 };
 
-// Tier 2: 12–14 fichas, 1–2 capas
+// Tier 2: 12–14 fichas, 1–2 capas. T2A y T2B usan medias posiciones en tier 2
+// (desviación aprobada de §7.4); T2A empieza con una sola pareja posible
+// (se revisará en la Fase 3).
 const T2A: Template = {
   id: 't2-sup-12',
   version: 1,

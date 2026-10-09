@@ -1,5 +1,12 @@
 // Validación de plantillas de tablero (§4.3 y §5.4).
-import { bit, buildGeometry, freeList, type Geometry, type Slot } from './geometry';
+import {
+  bit,
+  buildGeometry,
+  freeList,
+  normalize,
+  type Geometry,
+  type Slot,
+} from './geometry';
 
 /** Error de validación de layout (lo lanzan los generadores ante una plantilla inválida). */
 export class LayoutError extends Error {
@@ -83,7 +90,8 @@ function hasSupportAnyBelow(slots: readonly Slot[], i: number): boolean {
 }
 
 /** Ficha flotante: z > 0 sin ninguna ficha debajo que la soporte (§3.4). */
-export function hasFloating(slots: readonly Slot[]): boolean {
+export function hasFloating(slotsIn: readonly Slot[]): boolean {
+  const slots = normalize(slotsIn);
   for (let i = 0; i < slots.length; i++) {
     if (slots[i][2] === 0) continue;
     if (!hasSupportAnyBelow(slots, i)) return true;
@@ -132,9 +140,10 @@ export function geomSolvableExhaustive(g: Geometry): boolean {
 }
 
 /** Valida una plantilla contra §4.3. Devuelve errores (bloquean) y avisos (informan). */
-export function validateLayout(slots: readonly Slot[]): LayoutValidation {
+export function validateLayout(slotsIn: readonly Slot[]): LayoutValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const slots = normalize(slotsIn);
   const n = slots.length;
 
   if (n === 0) {

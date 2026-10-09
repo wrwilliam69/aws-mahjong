@@ -107,7 +107,7 @@
 
 ---
 
-### [ ] Tarea 5.1 — Correcciones de la revisión del algoritmo
+### [x] Tarea 5.1 — Correcciones de la revisión del algoritmo
 
 Correcciones que pidió la revisión de las tareas 1 a 5. No agregues funciones nuevas fuera de esta lista.
 

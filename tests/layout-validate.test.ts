@@ -129,3 +129,26 @@ describe('LAY-02: motivos de error de validación', () => {
     expect(v.errors.join(' | ')).toContain('geomSolvableExhaustive');
   });
 });
+
+describe('Tarea 5.1: normalización de coordenadas en la validación', () => {
+  it('una plantilla válida desplazada en x (+3) y subida a z = 1 sigue siendo válida', () => {
+    for (const t of ALL_TEMPLATES) {
+      const desplazado: Slot[] = t.slots.map(([x, y, z]): Slot => [x + 3, y, z + 1]);
+      expect(hasFloating(desplazado), t.id).toBe(false);
+      const v = validateLayout(desplazado);
+      expect(v.errors, t.id).toEqual([]);
+      expect(v.ok, t.id).toBe(true);
+    }
+  });
+
+  it('una plantilla de 5 columnas con x negativas ⇒ error de ancho', () => {
+    const slots: Slot[] = [
+      [-8, 0, 0], [-6, 0, 0], [-4, 0, 0], [-2, 0, 0], [0, 0, 0],
+      [-8, 2, 0], [-6, 2, 0], [-4, 2, 0], [-2, 2, 0], [0, 2, 0],
+      [-8, 4, 0], [-6, 4, 0],
+    ];
+    const v = validateLayout(slots);
+    expect(v.ok).toBe(false);
+    expect(v.errors.join(' | ')).toContain('Ancho');
+  });
+});

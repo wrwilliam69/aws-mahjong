@@ -68,6 +68,22 @@ describe('assign: equilibrio de caras auxiliar', () => {
     expect(a.tiles).toEqual(b.tiles);
     expect(a.tiles).not.toEqual(c.tiles);
   });
+
+  it('mismos servicios en distinto orden + misma semilla ⇒ exactamente el mismo resultado', () => {
+    const g = buildGeometry(ALL_TEMPLATES[0].slots);
+    const order: Pair[] = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9], [10, 11]];
+    const s1 = makeServices(6);
+    const s2 = ['svc-3', 'svc-0', 'svc-5', 'svc-1', 'svc-4', 'svc-2'];
+    const ref = [...s2];
+
+    const a = assign(g, order, s1, makeRng('orden-servicios'));
+    const b = assign(g, order, s2, makeRng('orden-servicios'));
+    expect(b).toEqual(a);
+    expect(s2).toEqual(ref); // el arreglo de entrada no se muta
+
+    const c = assign(g, order, s2, makeRng('orden-servicios-otra'));
+    expect(c).not.toEqual(a);
+  });
 });
 
 describe('GEN-01: reproducir el testigo paso a paso', () => {

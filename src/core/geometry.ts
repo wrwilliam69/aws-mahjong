@@ -27,7 +27,7 @@ export function popcount(mask: number): number {
 }
 
 /** Resta el mínimo de x, y y z: las coordenadas negativas se normalizan al construir (§3.4). */
-function normalize(slots: readonly Slot[]): Slot[] {
+export function normalize(slots: readonly Slot[]): Slot[] {
   if (slots.length === 0) return [];
   let minX = slots[0][0];
   let minY = slots[0][1];
@@ -41,6 +41,10 @@ function normalize(slots: readonly Slot[]): Slot[] {
 }
 
 export function buildGeometry(slots: readonly Slot[]): Geometry {
+  // Las máscaras de bits son int32 y full usa bit(n) - 1: como mucho 30 fichas.
+  if (slots.length > 30) {
+    throw new RangeError(`buildGeometry: máximo 30 fichas; recibido ${slots.length}`);
+  }
   const norm = normalize(slots);
   const n = norm.length;
   const above = new Array<number>(n).fill(0);
