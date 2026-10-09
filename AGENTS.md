@@ -79,15 +79,20 @@ Reglas:
 | Política de preguntas | **Siempre** se pregunta (`questionPolicy = 'always'`). |
 | Fecha del reto diario | **Local** (`dailyClock = 'local'`). |
 | Modo "fichas dobles" | **Fuera** del alcance. No lo implementes. |
-| Íconos oficiales de AWS | **No se usan todavía.** Ver §8. |
+| Íconos oficiales de AWS | **Sí se usan.** Ver §8. |
 
-## 8. Íconos provisionales
+## 8. Íconos oficiales de AWS
 
-Hasta nuevo aviso, la ficha de ícono muestra un **cuadro del color de la categoría** del servicio con unas **iniciales grandes** (campo `iconKey` del catálogo, por ejemplo `S3`, `EC2`, `LMB`). No dibujes, copies ni descargues logos o íconos oficiales de AWS ni de ninguna marca. Los íconos reales se conectarán después a través de `iconKey`, sin tocar la lógica.
+- El repo es privado y el sitio se publica con contraseña (uso personal de estudio). Por eso se usan los íconos oficiales del paquete AWS Architecture Icons.
+- El paquete completo vive en `iconos/` (ignorado por Git). Nunca lo subas al repo.
+- Solo se copian a `public/icons/<serviceId>.svg` los íconos de los servicios del catálogo, según `src/data/icon-map.json`.
+- No modifiques, redibujes ni combines los íconos.
+- Si falta un ícono, la ficha muestra el cuadro de color con `iconKey` como respaldo.
+- No descargues íconos de internet ni uses logos de otras marcas.
 
 ## 9. Seguridad y licencias
 
-- El repo es **público**. Nunca escribas contraseñas, claves de API, tokens ni credenciales de ningún tipo.
+- El repo es privado, pero igual: Nunca escribas contraseñas, claves de API, tokens ni credenciales de ningún tipo.
 - La lógica base se inspira en `ffalt/mah` (licencia MIT). **Reimplementa, no copies.** Si llegas a adaptar literalmente algún fragmento, sigue §2.1 del diseño: crea `THIRD_PARTY_NOTICES.md` y pon la cabecera de atribución en el archivo.
 
 ## 10. Comandos

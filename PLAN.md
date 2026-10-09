@@ -213,7 +213,7 @@ Correcciones que pidió la revisión de las tareas 1 a 5. No agregues funciones 
 
 ---
 
-### [ ] Tarea 11 — Escena del tablero
+### [x] Tarea 11 — Escena del tablero
 
 **Lee:** §3.4 (render y toques) y `AGENTS.md` §6 y §8.
 
@@ -226,6 +226,40 @@ Correcciones que pidió la revisión de las tareas 1 a 5. No agregues funciones 
 - Barra superior con puntos y tiempo.
 
 **Lista cuando:** un tablero de prueba se puede jugar completo en la vista de celular (360 px), con el texto legible.
+
+---
+
+### [x] Tarea 11.1 — Íconos oficiales de AWS (parte A: seleccionar y copiar)
+
+Autorizada por el usuario; no estaba en el plan. Solo selecciona y copia íconos; la parte B (usarlos en el juego) es otra tarea.
+
+**Haz:**
+- `iconos/` en `.gitignore` (el paquete completo nunca entra al repo).
+- `AGENTS.md`: §7 fila de íconos = "**Sí se usan.** Ver §8." y §8 reemplazada por las reglas de copia a `public/icons/`.
+- `src/data/icon-map.json`: `{ "<serviceId>": "<ruta en iconos/>" }`, ordenado por id, solo con coincidencias claras contra el paquete `Architecture-Service-Icons_*` (`*_64.svg`).
+- `scripts/copy-icons.mjs` + `package.json "icons"`.
+
+**Regla:** sin coincidencia clara o con varios candidatos ⇒ se deja fuera y se reporta. No se toca el juego todavía.
+
+**Lista cuando:** `npm run icons` copia a `public/icons/`; `npm test` y `npm run build` pasan.
+
+---
+
+### [x] Tarea 11.2 — Íconos oficiales de AWS (parte B: mostrarlos en el tablero)
+
+Autorizada por el usuario; no estaba en el plan.
+
+**Lee:** `AGENTS.md` §6 y §8.
+
+**Haz:**
+- La escena carga solo los SVG de los servicios del tablero presentes en `icon-map.json` con `this.load.svg('icon:<id>', import.meta.env.BASE_URL + 'icons/<id>.svg', {…})`, rasterizados al doble del tamaño dibujado. No se escribe `'/aws-mahjong/'` a mano.
+- Ficha de ícono: cara crema (como la de nombre) con el SVG centrado al ~75 %; el canto 3D conserva el color de la categoría. Respaldo con color + `iconKey` si no hay ícono o falla la carga (`loaderror`).
+- Fichas bloqueadas con una capa negra semitransparente (~50 %) común a íconos y nombres; las libres a todo color; al desbloquear, la capa se quita con una transición de ~150 ms.
+- Test `tests/icon-map.test.ts`: claves existentes en el catálogo, ordenadas, y con su SVG en `public/icons/`.
+
+**No se toca:** `src/core` ni la lógica del juego.
+
+**Lista cuando:** `npm test` y `npm run build` pasan.
 
 ---
 
