@@ -199,7 +199,7 @@ Correcciones que pidió la revisión de las tareas 1 a 5. No agregues funciones 
 
 ---
 
-### [ ] Tarea 10 — Puntos y estrellas
+### [x] Tarea 10 — Puntos y estrellas
 
 **Lee:** §11.2 (solo la parte de puntos base) y §11.3.
 
