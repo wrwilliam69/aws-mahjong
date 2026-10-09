@@ -127,7 +127,7 @@ Correcciones que pidió la revisión de las tareas 1 a 5. No agregues funciones 
 
 ---
 
-### [ ] Tarea 6 — Modelo de contenido
+### [x] Tarea 6 — Modelo de contenido
 
 > **Antes de esta tarea**, el usuario agrega `src/data/catalog.json` con los servicios. Si el archivo no existe, **detente y avisa**.
 
