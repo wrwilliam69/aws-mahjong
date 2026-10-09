@@ -51,7 +51,7 @@
 
 ---
 
-### [ ] Tarea 2 — Geometría y ficha libre
+### [x] Tarea 2 — Geometría y ficha libre
 
 **Lee:** §3 completo.
 
