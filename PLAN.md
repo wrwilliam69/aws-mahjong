@@ -63,7 +63,7 @@
 
 ---
 
-### [ ] Tarea 3 — Plantillas de tablero y validador
+### [x] Tarea 3 — Plantillas de tablero y validador
 
 **Lee:** §4 completo y §5.4 (`geomSolvableExhaustive`).
 
