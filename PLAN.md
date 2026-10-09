@@ -18,7 +18,7 @@
 
 ---
 
-### [ ] Tarea 0 — Esqueleto del proyecto
+### [x] Tarea 0 — Esqueleto del proyecto
 
 **Lee:** `AGENTS.md` completo.
 
