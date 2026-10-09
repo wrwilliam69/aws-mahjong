@@ -168,7 +168,7 @@ Correcciones que pidió la revisión de las tareas 1 a 5. No agregues funciones 
 
 ---
 
-### [ ] Tarea 8 — Preguntas "¿para qué sirve?"
+### [x] Tarea 8 — Preguntas "¿para qué sirve?"
 
 **Lee:** §9.3.
 
