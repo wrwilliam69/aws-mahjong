@@ -81,7 +81,7 @@
 
 ---
 
-### [ ] Tarea 4 — Pelado con solución garantizada
+### [x] Tarea 4 — Pelado con solución garantizada
 
 **Lee:** §5.1 y §5.2 completos. Pon atención a la condición 1 de §5.1 (las dos fichas salen de la misma lista de libres).
 
