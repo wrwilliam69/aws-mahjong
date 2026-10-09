@@ -180,7 +180,7 @@ Correcciones que pidió la revisión de las tareas 1 a 5. No agregues funciones 
 
 ---
 
-### [ ] Tarea 9 — Lógica de la partida
+### [x] Tarea 9 — Lógica de la partida
 
 **Lee:** §9.2 y §11.1.
 
