@@ -93,7 +93,7 @@
 
 ---
 
-### [ ] Tarea 5 — Asignación de servicios y verificación
+### [x] Tarea 5 — Asignación de servicios y verificación
 
 **Lee:** §5.3, §5.4 y §6.
 
