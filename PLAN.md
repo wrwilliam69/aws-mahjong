@@ -35,7 +35,7 @@
 
 ---
 
-### [ ] Tarea 1 — Generador de números con semilla
+### [x] Tarea 1 — Generador de números con semilla
 
 **Lee:** §11.4 (reglas de determinismo) y la referencia R11 de §2.
 
