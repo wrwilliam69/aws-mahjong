@@ -107,6 +107,26 @@
 
 ---
 
+### [ ] Tarea 5.1 — Correcciones de la revisión del algoritmo
+
+Correcciones que pidió la revisión de las tareas 1 a 5. No agregues funciones nuevas fuera de esta lista.
+
+**Haz:**
+1. `src/core/assign.ts → assign`: antes de `shuffle`, ordena **una copia** de `services` por id con un comparador simple (`a < b ? -1 : a > b ? 1 : 0`). **Nunca** uses `localeCompare` (regla 4 de §11.4).
+2. `src/core/geometry.ts → buildGeometry`: lanza `RangeError` si hay más de 30 fichas. Es el único sitio donde se controla; `peel` puede conservar su propio control.
+3. `src/core/layout-validate.ts → validateLayout` y `hasFloating`: normaliza las coordenadas al principio (resta el mínimo de x, y y z), igual que `buildGeometry`.
+4. `src/data/layouts.ts`: deja T2A y T2B como están. Agrega un comentario corto que diga que usan medias posiciones en tier 2 (desviación aprobada de §7.4) y que T2A empieza con una sola pareja posible (se revisará en la Fase 3).
+
+**Pruebas nuevas:**
+- Mismos servicios en distinto orden + misma semilla ⇒ exactamente el mismo resultado de `assign`.
+- `buildGeometry` con 31 fichas ⇒ `RangeError`.
+- Una plantilla válida desplazada en x (por ejemplo +3) y subida a z = 1 sigue siendo válida.
+- Una plantilla de 5 columnas con x negativas ⇒ error de ancho.
+
+**Lista cuando:** todas las pruebas pasan (las 98 de antes y las nuevas).
+
+---
+
 ### [ ] Tarea 6 — Modelo de contenido
 
 > **Antes de esta tarea**, el usuario agrega `src/data/catalog.json` con los servicios. Si el archivo no existe, **detente y avisa**.
@@ -117,7 +137,14 @@
 - `src/core/content.ts`: tipos `Service`, `Category` y `DomainId` (§9.1), y una función que carga y valida `catalog.json`.
 - No agregues ni cambies servicios del catálogo.
 
-**Pruebas:** las validaciones de §9.4 sobre el catálogo real.
+**Ajustes aprobados al diseño para este catálogo** (reemplazan lo que diga §9.1 o §9.4 en estos puntos):
+- `Category` tiene además `color` (texto hexadecimal, por ejemplo `#E8700A`), que se usa para los íconos provisionales.
+- `Service` puede tener `tileLines` (máximo 2 líneas). El texto de la ficha de nombre es `tileLines` si existe; si no, es `shortName` partido por espacios. En ambos casos: máximo 2 líneas y cada línea de máximo 11 caracteres. Esta regla **reemplaza** el límite de 14 caracteres de `shortName`.
+- `introOrder` es único en todo el catálogo (no solo dentro de cada dominio).
+- En la Fase 1 el dominio D1 no tiene servicios: son conceptos y llegan en la Fase 2. Omite para D1 la validación de "servicios suficientes por dominio".
+- La comprobación de que `functionText` no contiene el nombre del servicio se hace sin distinguir mayúsculas, contra `name` y `shortName`.
+
+**Pruebas:** las validaciones de §9.4 sobre el catálogo real, con los ajustes de arriba.
 
 **Lista cuando:** el catálogo pasa todas las validaciones. Si alguna falla, informa cuál y no corrijas el contenido.
 
@@ -128,7 +155,10 @@
 **Lee:** §7.2 y §7.3.
 
 **Haz:** `src/core/metrics.ts` con `measure` (solo `A0`, `Abar`, `layers` y `n` por ahora) y `src/core/generator.ts` con `generateBoard(template, services, cfg, rng)`:
-- Espejo aleatorio → `buildGeometry` → `peel` → `assign` → `measure` → `assert(solveGreedy)`.
+- Espejo aleatorio → `buildGeometry` → `peelWithRetries` → `assign` → `measure` → comprobación con `solveGreedy`.
+- Usa **`peelWithRetries`**, no `peel` directamente.
+- La comprobación final usa una función propia en `src/core` (por ejemplo `invariant(cond, msg)` que lanza `Error`), porque `node:assert` no existe en el navegador.
+- En el `BoardSetup` guarda **`g.slots`** (coordenadas ya normalizadas y con espejo), no las de la plantilla: `TileSpec.slot` indexa ese orden.
 - **Un solo candidato** (los K candidatos van en la Fase 3).
 - Devuelve un `BoardSetup` (§12).
 
@@ -157,6 +187,7 @@
 **Haz:** `src/core/level-runtime.ts`:
 - Estado `LevelRuntime` (§12), sin pista, deshacer ni combo.
 - `tap(slot)`: ficha bloqueada, misma ficha, misma cara, intento erróneo y pareja correcta, como en §9.2.
+- **Importante:** la regla de pareja correcta en `tap` debe ser exactamente la de `availablePairs` en `solve.ts` (ambas fichas libres, mismo servicio y caras distintas). Reutiliza esa lógica en vez de reescribirla; si difieren, deja de valer la garantía de §6.
 - Pareja correcta: retira las fichas, abre la pregunta y **pausa el reloj del tablero**.
 - `answer(index)`: registra acierto o error, cierra la pregunta y reanuda el reloj. Con respuesta incorrecta, la pareja queda retirada igual.
 - `tick(ms)`: avanza el reloj solo si el tablero está activo.
@@ -241,3 +272,7 @@ Combos (§11.2), pista (§8.1), repetición espaciada (§10), selección de serv
 ## Fase 3 — Pulido y retos (no empezar todavía)
 
 K candidatos y dificultad medida (§7.3), señuelos (§7.5), ajuste dinámico (§7.7), reto diario (§11.4), íconos oficiales (si los términos de AWS lo permiten), sonidos.
+
+Pendientes anotados para esta fase:
+- **Recalibrar `minA0` de §7.4** antes de activar `meetsHard`: con 4 columnas los mínimos actuales no se pueden cumplir (las plantillas empiezan con 1 a 4 parejas posibles).
+- **Rediseñar T2A** (`layouts.ts`) para que no empiece con una sola pareja posible, y revisar si el tier 2 debe ir sin medias posiciones.

@@ -1,0 +1,873 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "compute",
+      "name": "Cómputo",
+      "color": "#E8700A",
+      "related": [
+        "containers",
+        "networking"
+      ]
+    },
+    {
+      "id": "containers",
+      "name": "Contenedores",
+      "color": "#D9480F",
+      "related": [
+        "compute"
+      ]
+    },
+    {
+      "id": "storage",
+      "name": "Almacenamiento",
+      "color": "#2F9E44",
+      "related": [
+        "database"
+      ]
+    },
+    {
+      "id": "database",
+      "name": "Bases de datos",
+      "color": "#3B5BDB",
+      "related": [
+        "storage"
+      ]
+    },
+    {
+      "id": "networking",
+      "name": "Redes y entrega de contenido",
+      "color": "#7048E8",
+      "related": [
+        "compute"
+      ]
+    },
+    {
+      "id": "security",
+      "name": "Seguridad, identidad y cumplimiento",
+      "color": "#C92A2A",
+      "related": [
+        "management"
+      ]
+    },
+    {
+      "id": "management",
+      "name": "Administración y gobierno",
+      "color": "#C2255C",
+      "related": [
+        "security",
+        "billing"
+      ]
+    },
+    {
+      "id": "billing",
+      "name": "Facturación y costos",
+      "color": "#0C8599",
+      "related": [
+        "management"
+      ]
+    }
+  ],
+  "services": [
+    {
+      "id": "amazon-ec2",
+      "kind": "service",
+      "name": "Amazon EC2",
+      "shortName": "EC2",
+      "iconKey": "EC2",
+      "category": "compute",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 1,
+      "since": 1,
+      "functionText": "Servidores virtuales en la nube con control total del sistema operativo",
+      "explanation": "Es el ejemplo clásico de IaaS: tú eliges el tipo de instancia y administras el sistema operativo, sus parches y lo que instalas.",
+      "confusableWith": [
+        "aws-lambda",
+        "amazon-lightsail"
+      ]
+    },
+    {
+      "id": "aws-lambda",
+      "kind": "service",
+      "name": "AWS Lambda",
+      "shortName": "Lambda",
+      "iconKey": "LMB",
+      "category": "compute",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 2,
+      "since": 1,
+      "functionText": "Ejecutar código en respuesta a eventos sin administrar servidores",
+      "explanation": "Es cómputo serverless: pagas solo por el tiempo que corre tu código, y cada ejecución dura como máximo 15 minutos.",
+      "confusableWith": [
+        "aws-fargate",
+        "amazon-ec2"
+      ]
+    },
+    {
+      "id": "aws-elastic-beanstalk",
+      "kind": "service",
+      "name": "AWS Elastic Beanstalk",
+      "shortName": "Elastic Beanstalk",
+      "iconKey": "EB",
+      "category": "compute",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 3,
+      "since": 1,
+      "functionText": "Desplegar aplicaciones web subiendo solo el código; la plataforma se gestiona sola",
+      "explanation": "Es el ejemplo típico de PaaS: crea por ti los servidores, el balanceo de carga y el escalado, y tú te concentras en el código.",
+      "confusableWith": [
+        "aws-cloudformation",
+        "amazon-lightsail"
+      ]
+    },
+    {
+      "id": "amazon-lightsail",
+      "kind": "service",
+      "name": "Amazon Lightsail",
+      "shortName": "Lightsail",
+      "iconKey": "LS",
+      "category": "compute",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 4,
+      "since": 1,
+      "functionText": "Servidores privados virtuales sencillos con precio mensual fijo para proyectos pequeños",
+      "explanation": "Pensado para quien empieza o tiene sitios pequeños: viene todo empaquetado y con un costo mensual predecible.",
+      "confusableWith": [
+        "amazon-ec2",
+        "aws-elastic-beanstalk"
+      ]
+    },
+    {
+      "id": "amazon-ecs",
+      "kind": "service",
+      "name": "Amazon ECS",
+      "shortName": "ECS",
+      "iconKey": "ECS",
+      "category": "containers",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 5,
+      "since": 1,
+      "functionText": "Orquestador de contenedores propio de AWS, sin usar Kubernetes",
+      "explanation": "Administra dónde y cómo corren tus contenedores. Puede usar instancias EC2 o Fargate por debajo.",
+      "confusableWith": [
+        "amazon-eks",
+        "aws-fargate"
+      ]
+    },
+    {
+      "id": "amazon-eks",
+      "kind": "service",
+      "name": "Amazon EKS",
+      "shortName": "EKS",
+      "iconKey": "EKS",
+      "category": "containers",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 6,
+      "since": 1,
+      "functionText": "Ejecutar Kubernetes gestionado para orquestar contenedores",
+      "explanation": "Si la pregunta menciona Kubernetes, la respuesta casi siempre es este servicio.",
+      "confusableWith": [
+        "amazon-ecs"
+      ]
+    },
+    {
+      "id": "aws-fargate",
+      "kind": "service",
+      "name": "AWS Fargate",
+      "shortName": "Fargate",
+      "iconKey": "FGT",
+      "category": "containers",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 7,
+      "since": 1,
+      "functionText": "Ejecutar contenedores sin administrar servidores ni instancias",
+      "explanation": "Es el motor serverless para contenedores: funciona junto con ECS o EKS y cobras solo la CPU y memoria que usan.",
+      "confusableWith": [
+        "aws-lambda",
+        "amazon-ecs"
+      ]
+    },
+    {
+      "id": "amazon-ecr",
+      "kind": "service",
+      "name": "Amazon ECR",
+      "shortName": "ECR",
+      "iconKey": "ECR",
+      "category": "containers",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 8,
+      "since": 1,
+      "functionText": "Guardar y versionar imágenes de contenedores en un registro privado",
+      "explanation": "Es como un repositorio para tus imágenes Docker, desde donde ECS y EKS las descargan para ejecutarlas.",
+      "confusableWith": [
+        "amazon-ecs"
+      ]
+    },
+    {
+      "id": "amazon-s3",
+      "kind": "service",
+      "name": "Amazon S3",
+      "shortName": "S3",
+      "iconKey": "S3",
+      "category": "storage",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 9,
+      "since": 1,
+      "functionText": "Almacenamiento de objetos escalable para guardar cualquier tipo de archivo",
+      "explanation": "Guarda objetos dentro de buckets, con una durabilidad de 11 nueves. Sirve para respaldos, sitios estáticos y datos para análisis.",
+      "confusableWith": [
+        "amazon-ebs",
+        "amazon-efs"
+      ],
+      "excludeAsDistractor": [
+        "amazon-s3-glacier"
+      ]
+    },
+    {
+      "id": "amazon-ebs",
+      "kind": "service",
+      "name": "Amazon EBS",
+      "shortName": "EBS",
+      "iconKey": "EBS",
+      "category": "storage",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 10,
+      "since": 1,
+      "functionText": "Discos de bloque persistentes que se conectan a una instancia",
+      "explanation": "Funciona como el disco duro de una instancia EC2: sus datos se conservan aunque la instancia se detenga.",
+      "confusableWith": [
+        "amazon-efs",
+        "amazon-s3"
+      ]
+    },
+    {
+      "id": "amazon-efs",
+      "kind": "service",
+      "name": "Amazon EFS",
+      "shortName": "EFS",
+      "iconKey": "EFS",
+      "category": "storage",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 11,
+      "since": 1,
+      "functionText": "Sistema de archivos compartido que muchas instancias Linux usan al mismo tiempo",
+      "explanation": "La clave es 'compartido': a diferencia de un disco de bloque, muchas instancias pueden montarlo a la vez.",
+      "confusableWith": [
+        "amazon-ebs",
+        "amazon-s3"
+      ]
+    },
+    {
+      "id": "amazon-s3-glacier",
+      "kind": "service",
+      "name": "Amazon S3 Glacier",
+      "shortName": "S3 Glacier",
+      "iconKey": "GLC",
+      "category": "storage",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 12,
+      "since": 1,
+      "functionText": "Archivar datos a largo plazo a muy bajo costo, con recuperación más lenta",
+      "explanation": "Son las clases de archivo de S3: ideales para datos que casi nunca se consultan, como copias que se guardan por años.",
+      "confusableWith": [
+        "amazon-s3"
+      ],
+      "excludeAsDistractor": [
+        "amazon-s3"
+      ]
+    },
+    {
+      "id": "aws-storage-gateway",
+      "kind": "service",
+      "name": "AWS Storage Gateway",
+      "shortName": "Storage Gateway",
+      "iconKey": "SGW",
+      "category": "storage",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 13,
+      "since": 1,
+      "functionText": "Conectar el almacenamiento de tu centro de datos local con la nube",
+      "explanation": "Es un servicio híbrido: tus aplicaciones locales siguen usando protocolos estándar mientras los datos se guardan en AWS.",
+      "confusableWith": [
+        "aws-direct-connect"
+      ]
+    },
+    {
+      "id": "amazon-rds",
+      "kind": "service",
+      "name": "Amazon RDS",
+      "shortName": "RDS",
+      "iconKey": "RDS",
+      "category": "database",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 14,
+      "since": 1,
+      "functionText": "Bases de datos relacionales gestionadas con motores como MySQL, PostgreSQL u Oracle",
+      "explanation": "AWS se encarga de los respaldos, los parches del motor y la alta disponibilidad; tú administras tus datos y consultas.",
+      "confusableWith": [
+        "amazon-aurora",
+        "amazon-dynamodb"
+      ],
+      "excludeAsDistractor": [
+        "amazon-aurora"
+      ]
+    },
+    {
+      "id": "amazon-aurora",
+      "kind": "service",
+      "name": "Amazon Aurora",
+      "shortName": "Aurora",
+      "iconKey": "AUR",
+      "category": "database",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 15,
+      "since": 1,
+      "functionText": "Motor relacional creado por AWS, compatible con MySQL y PostgreSQL, de alto rendimiento",
+      "explanation": "Es más rápido que MySQL estándar y replica los datos en varias zonas de disponibilidad.",
+      "confusableWith": [
+        "amazon-rds"
+      ],
+      "excludeAsDistractor": [
+        "amazon-rds"
+      ]
+    },
+    {
+      "id": "amazon-dynamodb",
+      "kind": "service",
+      "name": "Amazon DynamoDB",
+      "shortName": "DynamoDB",
+      "iconKey": "DDB",
+      "category": "database",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 16,
+      "since": 1,
+      "functionText": "Base de datos NoSQL clave-valor, serverless, con respuestas en milisegundos",
+      "explanation": "No usa tablas relacionales ni SQL tradicional, y escala automáticamente sin que administres servidores.",
+      "confusableWith": [
+        "amazon-rds",
+        "amazon-elasticache"
+      ]
+    },
+    {
+      "id": "amazon-elasticache",
+      "kind": "service",
+      "name": "Amazon ElastiCache",
+      "shortName": "ElastiCache",
+      "tileLines": [
+        "Elasti-",
+        "Cache"
+      ],
+      "iconKey": "ECA",
+      "category": "database",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 17,
+      "since": 1,
+      "functionText": "Caché en memoria con Redis o Memcached para acelerar lecturas frecuentes",
+      "explanation": "Guarda en memoria los datos más consultados para quitarle carga a la base de datos principal.",
+      "confusableWith": [
+        "amazon-dynamodb"
+      ]
+    },
+    {
+      "id": "amazon-redshift",
+      "kind": "service",
+      "name": "Amazon Redshift",
+      "shortName": "Redshift",
+      "iconKey": "RS",
+      "category": "database",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 18,
+      "since": 1,
+      "functionText": "Almacén de datos (data warehouse) para analítica sobre grandes volúmenes",
+      "explanation": "Está hecho para análisis y reportes a escala de petabytes, no para las transacciones del día a día.",
+      "confusableWith": [
+        "amazon-rds"
+      ]
+    },
+    {
+      "id": "amazon-vpc",
+      "kind": "service",
+      "name": "Amazon VPC",
+      "shortName": "VPC",
+      "iconKey": "VPC",
+      "category": "networking",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 19,
+      "since": 1,
+      "functionText": "Crear una red privada y aislada dentro de AWS, dividida en subredes",
+      "explanation": "Dentro defines subredes públicas y privadas, tablas de rutas y gateways para controlar el tráfico.",
+      "confusableWith": [
+        "aws-direct-connect"
+      ]
+    },
+    {
+      "id": "amazon-cloudfront",
+      "kind": "service",
+      "name": "Amazon CloudFront",
+      "shortName": "CloudFront",
+      "iconKey": "CF",
+      "category": "networking",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 20,
+      "since": 1,
+      "functionText": "Red de entrega de contenido (CDN) que sirve archivos desde ubicaciones cercanas al usuario",
+      "explanation": "Usa las ubicaciones de borde (edge locations) para guardar copias del contenido y reducir la latencia.",
+      "confusableWith": [
+        "amazon-route-53"
+      ]
+    },
+    {
+      "id": "amazon-route-53",
+      "kind": "service",
+      "name": "Amazon Route 53",
+      "shortName": "Route 53",
+      "iconKey": "R53",
+      "category": "networking",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 21,
+      "since": 1,
+      "functionText": "Servicio de DNS: traducir nombres de dominio y dirigir a los usuarios a tus recursos",
+      "explanation": "También permite registrar dominios y enrutar el tráfico según salud, latencia o ubicación del usuario.",
+      "confusableWith": [
+        "amazon-cloudfront",
+        "elastic-load-balancing"
+      ]
+    },
+    {
+      "id": "aws-direct-connect",
+      "kind": "service",
+      "name": "AWS Direct Connect",
+      "shortName": "Direct Connect",
+      "iconKey": "DX",
+      "category": "networking",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 22,
+      "since": 1,
+      "functionText": "Conexión física privada y dedicada entre tu centro de datos y AWS",
+      "explanation": "No pasa por internet público, a diferencia de una VPN. Es más estable, pero tarda semanas en instalarse.",
+      "confusableWith": [
+        "amazon-vpc",
+        "aws-storage-gateway"
+      ]
+    },
+    {
+      "id": "elastic-load-balancing",
+      "kind": "service",
+      "name": "Elastic Load Balancing",
+      "shortName": "ELB",
+      "iconKey": "ELB",
+      "category": "networking",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 23,
+      "since": 1,
+      "functionText": "Repartir el tráfico entrante entre varios destinos, como instancias o contenedores",
+      "explanation": "Mejora la disponibilidad: si un destino falla, deja de enviarle tráfico y lo reparte entre los que siguen sanos.",
+      "confusableWith": [
+        "amazon-route-53"
+      ]
+    },
+    {
+      "id": "amazon-api-gateway",
+      "kind": "service",
+      "name": "Amazon API Gateway",
+      "shortName": "API Gateway",
+      "iconKey": "APIG",
+      "category": "networking",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 24,
+      "since": 1,
+      "functionText": "Crear, publicar y proteger APIs que reciben peticiones de los clientes",
+      "explanation": "Es la puerta de entrada típica de una aplicación serverless: recibe la petición y la entrega, por ejemplo, a una función Lambda.",
+      "confusableWith": [
+        "elastic-load-balancing"
+      ]
+    },
+    {
+      "id": "aws-iam",
+      "kind": "service",
+      "name": "AWS Identity and Access Management",
+      "shortName": "IAM",
+      "iconKey": "IAM",
+      "category": "security",
+      "domains": [
+        "D2"
+      ],
+      "introOrder": 25,
+      "since": 1,
+      "functionText": "Controlar quién puede acceder a qué recursos mediante usuarios, grupos, roles y políticas",
+      "explanation": "Es un servicio global y la base de la seguridad en AWS. Se rige por el principio de mínimo privilegio.",
+      "confusableWith": [
+        "aws-organizations"
+      ]
+    },
+    {
+      "id": "aws-shield",
+      "kind": "service",
+      "name": "AWS Shield",
+      "shortName": "Shield",
+      "iconKey": "SHD",
+      "category": "security",
+      "domains": [
+        "D2"
+      ],
+      "introOrder": 26,
+      "since": 1,
+      "functionText": "Proteger tus aplicaciones contra ataques de denegación de servicio (DDoS)",
+      "explanation": "La versión Standard viene incluida gratis para todos los clientes; la Advanced agrega protección y soporte especializados.",
+      "confusableWith": [
+        "aws-waf"
+      ]
+    },
+    {
+      "id": "aws-waf",
+      "kind": "service",
+      "name": "AWS WAF",
+      "shortName": "WAF",
+      "iconKey": "WAF",
+      "category": "security",
+      "domains": [
+        "D2"
+      ],
+      "introOrder": 27,
+      "since": 1,
+      "functionText": "Filtrar tráfico web malicioso, como inyección SQL o cross-site scripting",
+      "explanation": "Es un firewall de aplicaciones web: trabaja con reglas sobre las peticiones HTTP, en la capa 7.",
+      "confusableWith": [
+        "aws-shield"
+      ]
+    },
+    {
+      "id": "amazon-guardduty",
+      "kind": "service",
+      "name": "Amazon GuardDuty",
+      "shortName": "GuardDuty",
+      "iconKey": "GD",
+      "category": "security",
+      "domains": [
+        "D2"
+      ],
+      "introOrder": 28,
+      "since": 1,
+      "functionText": "Detectar amenazas analizando la actividad de la cuenta con aprendizaje automático",
+      "explanation": "Revisa registros como los de CloudTrail, VPC y DNS en busca de comportamientos sospechosos.",
+      "confusableWith": [
+        "amazon-inspector",
+        "amazon-macie"
+      ]
+    },
+    {
+      "id": "amazon-inspector",
+      "kind": "service",
+      "name": "Amazon Inspector",
+      "shortName": "Inspector",
+      "iconKey": "INS",
+      "category": "security",
+      "domains": [
+        "D2"
+      ],
+      "introOrder": 29,
+      "since": 1,
+      "functionText": "Escanear automáticamente vulnerabilidades en servidores, contenedores y funciones",
+      "explanation": "Busca software con fallas de seguridad conocidas y exposiciones de red no intencionadas en tus cargas de trabajo.",
+      "confusableWith": [
+        "amazon-guardduty"
+      ]
+    },
+    {
+      "id": "amazon-macie",
+      "kind": "service",
+      "name": "Amazon Macie",
+      "shortName": "Macie",
+      "iconKey": "MAC",
+      "category": "security",
+      "domains": [
+        "D2"
+      ],
+      "introOrder": 30,
+      "since": 1,
+      "functionText": "Descubrir y proteger datos sensibles, como datos personales, guardados en S3",
+      "explanation": "Usa aprendizaje automático para encontrar información sensible en tus buckets y alertarte.",
+      "confusableWith": [
+        "amazon-guardduty"
+      ]
+    },
+    {
+      "id": "aws-kms",
+      "kind": "service",
+      "name": "AWS Key Management Service",
+      "shortName": "KMS",
+      "iconKey": "KMS",
+      "category": "security",
+      "domains": [
+        "D2"
+      ],
+      "introOrder": 31,
+      "since": 1,
+      "functionText": "Crear y administrar las claves de cifrado que protegen tus datos",
+      "explanation": "Se integra con la mayoría de servicios para cifrar datos en reposo sin que tengas que gestionar las claves a mano.",
+      "confusableWith": [
+        "aws-iam"
+      ]
+    },
+    {
+      "id": "aws-artifact",
+      "kind": "service",
+      "name": "AWS Artifact",
+      "shortName": "Artifact",
+      "iconKey": "ART",
+      "category": "security",
+      "domains": [
+        "D2"
+      ],
+      "introOrder": 32,
+      "since": 1,
+      "functionText": "Descargar informes de cumplimiento y auditoría de AWS, como ISO o SOC",
+      "explanation": "Lo usas cuando un auditor te pide pruebas de que la infraestructura de AWS cumple una norma.",
+      "confusableWith": [
+        "aws-config"
+      ]
+    },
+    {
+      "id": "amazon-cloudwatch",
+      "kind": "service",
+      "name": "Amazon CloudWatch",
+      "shortName": "CloudWatch",
+      "iconKey": "CW",
+      "category": "management",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 33,
+      "since": 1,
+      "functionText": "Monitorear métricas, registros y alarmas de tus recursos y aplicaciones",
+      "explanation": "Responde '¿cómo está funcionando?': uso de CPU, errores, alarmas y paneles de monitoreo.",
+      "confusableWith": [
+        "aws-cloudtrail",
+        "aws-config"
+      ]
+    },
+    {
+      "id": "aws-cloudtrail",
+      "kind": "service",
+      "name": "AWS CloudTrail",
+      "shortName": "CloudTrail",
+      "iconKey": "CT",
+      "category": "management",
+      "domains": [
+        "D2",
+        "D3"
+      ],
+      "introOrder": 34,
+      "since": 1,
+      "functionText": "Registrar quién hizo qué: auditoría de las llamadas a la API en tu cuenta",
+      "explanation": "Responde '¿quién hizo esto y cuándo?'. Es clave para auditorías e investigaciones de seguridad.",
+      "confusableWith": [
+        "amazon-cloudwatch",
+        "aws-config"
+      ]
+    },
+    {
+      "id": "aws-config",
+      "kind": "service",
+      "name": "AWS Config",
+      "shortName": "Config",
+      "iconKey": "CFG",
+      "category": "management",
+      "domains": [
+        "D2",
+        "D3"
+      ],
+      "introOrder": 35,
+      "since": 1,
+      "functionText": "Registrar cómo cambian tus recursos con el tiempo y evaluar si cumplen reglas",
+      "explanation": "Responde '¿cómo estaba configurado este recurso y cumple las reglas?'. Guarda el historial de cambios.",
+      "confusableWith": [
+        "aws-cloudtrail",
+        "amazon-cloudwatch"
+      ]
+    },
+    {
+      "id": "aws-cloudformation",
+      "kind": "service",
+      "name": "AWS CloudFormation",
+      "shortName": "CloudFormation",
+      "tileLines": [
+        "Cloud-",
+        "Formation"
+      ],
+      "iconKey": "CFN",
+      "category": "management",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 36,
+      "since": 1,
+      "functionText": "Crear infraestructura de forma automática a partir de plantillas JSON o YAML",
+      "explanation": "Es infraestructura como código: describes los recursos en una plantilla y el servicio los crea en orden.",
+      "confusableWith": [
+        "aws-elastic-beanstalk"
+      ]
+    },
+    {
+      "id": "aws-systems-manager",
+      "kind": "service",
+      "name": "AWS Systems Manager",
+      "shortName": "Systems Manager",
+      "iconKey": "SSM",
+      "category": "management",
+      "domains": [
+        "D3"
+      ],
+      "introOrder": 37,
+      "since": 1,
+      "functionText": "Administrar, parchear y acceder a flotas de servidores desde un solo lugar",
+      "explanation": "Su Session Manager permite entrar a las instancias sin abrir el puerto 22 ni gestionar claves SSH.",
+      "confusableWith": [
+        "aws-config"
+      ]
+    },
+    {
+      "id": "aws-cost-explorer",
+      "kind": "service",
+      "name": "AWS Cost Explorer",
+      "shortName": "Cost Explorer",
+      "iconKey": "CE",
+      "category": "billing",
+      "domains": [
+        "D4"
+      ],
+      "introOrder": 38,
+      "since": 1,
+      "functionText": "Visualizar y analizar el gasto histórico, y pronosticar costos futuros",
+      "explanation": "Responde '¿en qué gasté?' con gráficas filtradas por servicio, cuenta o etiqueta.",
+      "confusableWith": [
+        "aws-budgets"
+      ]
+    },
+    {
+      "id": "aws-budgets",
+      "kind": "service",
+      "name": "AWS Budgets",
+      "shortName": "Budgets",
+      "iconKey": "BGT",
+      "category": "billing",
+      "domains": [
+        "D4"
+      ],
+      "introOrder": 39,
+      "since": 1,
+      "functionText": "Definir un límite de gasto o uso y recibir alertas cuando se acerca o se supera",
+      "explanation": "Es preventivo: te avisa por correo antes de que la factura se salga de lo planeado.",
+      "confusableWith": [
+        "aws-cost-explorer"
+      ]
+    },
+    {
+      "id": "aws-organizations",
+      "kind": "service",
+      "name": "AWS Organizations",
+      "shortName": "Organizations",
+      "tileLines": [
+        "Organi-",
+        "zations"
+      ],
+      "iconKey": "ORG",
+      "category": "billing",
+      "domains": [
+        "D4"
+      ],
+      "introOrder": 40,
+      "since": 1,
+      "functionText": "Administrar varias cuentas con facturación consolidada y políticas centralizadas",
+      "explanation": "Con las políticas de control de servicios (SCP) limitas lo que pueden hacer las cuentas de la organización.",
+      "confusableWith": [
+        "aws-iam"
+      ]
+    },
+    {
+      "id": "aws-trusted-advisor",
+      "kind": "service",
+      "name": "AWS Trusted Advisor",
+      "shortName": "Trusted Advisor",
+      "iconKey": "TA",
+      "category": "billing",
+      "domains": [
+        "D4"
+      ],
+      "introOrder": 41,
+      "since": 1,
+      "functionText": "Recomendaciones de costos, seguridad, rendimiento, tolerancia a fallos y límites",
+      "explanation": "Revisa tu cuenta y te sugiere mejoras. Cuántas revisiones ves depende de tu plan de soporte.",
+      "confusableWith": [
+        "aws-cost-explorer"
+      ]
+    },
+    {
+      "id": "aws-pricing-calculator",
+      "kind": "service",
+      "name": "AWS Pricing Calculator",
+      "shortName": "Pricing Calculator",
+      "iconKey": "CALC",
+      "category": "billing",
+      "domains": [
+        "D4"
+      ],
+      "introOrder": 42,
+      "since": 1,
+      "functionText": "Estimar el costo de una arquitectura antes de desplegarla",
+      "explanation": "Es para planear: calcula cuánto costaría algo que aún no existe, a diferencia de las herramientas que miran el gasto real.",
+      "confusableWith": [
+        "aws-cost-explorer",
+        "aws-budgets"
+      ]
+    }
+  ]
+}
