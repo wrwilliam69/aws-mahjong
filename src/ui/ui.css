@@ -84,6 +84,24 @@ body {
   flex-wrap: wrap;
 }
 
+/* Tarea 13.2: nombre arriba y la sigla debajo, en columna junto al ícono. */
+.review-card__names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Línea de la sigla ("ECS = Elastic Container Service"): pequeña y tenue.
+   Se usa en la tarjeta de repaso, la respuesta incorrecta y los fallados. */
+.acronym-line {
+  display: block;
+  font-size: calc(100cqw * 13 / 390);
+  font-weight: normal;
+  line-height: 1.25;
+  color: #9fb0c3;
+  overflow-wrap: anywhere;
+}
+
 .review-card__tutorial {
   margin: 0;
   font-size: calc(100cqw * 15 / 390);
@@ -223,6 +241,11 @@ body {
   cursor: default;
 }
 
+/* La sigla va justo encima de la explicación, sin el hueco del gap del cuerpo. */
+.question__acronym {
+  margin-bottom: calc(100cqw * -6 / 390);
+}
+
 .question__explanation {
   margin: 0;
   font-size: calc(100cqw * 15 / 390);
@@ -328,6 +351,12 @@ body {
   display: flex;
   align-items: center;
   gap: calc(100cqw * 8 / 390);
+}
+
+.results__service-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .results__service-name {

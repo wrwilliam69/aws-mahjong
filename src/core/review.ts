@@ -1,7 +1,7 @@
 // Tarjeta de repaso (Tarea 12 del PLAN.md): datos que muestra la franja inferior
 // tras cada respuesta. Lógica pura: textos del catálogo más las etiquetas de
 // dominios (§11.3); la UI solo pinta estos datos.
-import type { Category, DomainId, Service } from './content';
+import { acronymText, type Category, type DomainId, type Service } from './content';
 
 /** Color de respaldo si la categoría no define uno (la UI dibuja el cuadro). */
 export const FALLBACK_CATEGORY_COLOR = '#607d8b';
@@ -16,6 +16,8 @@ export interface ReviewIconSpec {
 export interface ReviewData {
   serviceId: string;
   serviceName: string;
+  /** "ECS = Elastic Container Service" o null (Tarea 13.2); va debajo del nombre. */
+  acronymText: string | null;
   correct: boolean;
   functionText: string;
   explanation: string;
@@ -50,6 +52,7 @@ export function buildReviewData(
   return {
     serviceId: service.id,
     serviceName: service.name,
+    acronymText: acronymText(service),
     correct,
     functionText: service.functionText,
     explanation: service.explanation,

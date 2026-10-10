@@ -8,7 +8,7 @@ import { CARD_HEIGHT_RATIO } from './layout';
 
 // Reexportada para que la escena (LevelScene.ts) use la misma constante.
 export { CARD_HEIGHT_RATIO };
-import { catalog, type Category } from '../core/content';
+import { acronymText, catalog, type Category } from '../core/content';
 import { loadSave } from '../core/persistence';
 import { bestStarsOf, isUnlocked } from '../core/progress';
 import { FALLBACK_CATEGORY_COLOR, type ReviewData, type ReviewIconSpec } from '../core/review';
@@ -209,6 +209,17 @@ function iconEl(serviceId: string, icon: ReviewIconSpec): HTMLElement {
   return div;
 }
 
+/**
+ * Línea pequeña y tenue con la sigla ("ECS = Elastic Container Service"), Tarea
+ * 13.2. Solo se usa después de responder: nunca en la pregunta, daría pistas.
+ */
+function acronymEl(text: string): HTMLElement {
+  const el = document.createElement('span');
+  el.className = 'acronym-line';
+  el.textContent = text;
+  return el;
+}
+
 // --- Tarjeta de repaso -----------------------------------------------------
 
 let cardEl: HTMLElement | null = null;
@@ -228,7 +239,7 @@ export function showTutorial(): void {
   const p = document.createElement('p');
   p.className = 'review-card__tutorial';
   p.textContent =
-    'Toca un ícono y luego su nombre. Solo puedes tocar las fichas brillantes; las oscuras están bloqueadas.';
+    'Toca un ícono y luego su nombre. Solo puedes tocar las fichas brillantes; las grises están bloqueadas.';
   card.appendChild(p);
 }
 
@@ -261,9 +272,14 @@ export function showReview(data: ReviewData): void {
   const head = document.createElement('div');
   head.className = 'review-card__head';
   head.appendChild(iconEl(data.serviceId, data.icon));
+  // Nombre y, debajo, la sigla (Tarea 13.2).
+  const names = document.createElement('div');
+  names.className = 'review-card__names';
   const title = document.createElement('span');
   title.textContent = `${data.serviceName} ${data.correct ? '✅' : '❌'}`;
-  head.appendChild(title);
+  names.appendChild(title);
+  if (data.acronymText !== null) names.appendChild(acronymEl(data.acronymText));
+  head.appendChild(names);
   card.appendChild(head);
 
   const scroll = document.createElement('div');
@@ -297,6 +313,8 @@ export interface QuestionUiData {
   serviceName: string;
   correctIndex: number;
   explanation: string;
+  /** Sigla para la respuesta incorrecta (Tarea 13.2); nunca se muestra antes de responder. */
+  acronymText: string | null;
   icon: ReviewIconSpec;
   options: readonly { functionText: string }[];
 }
@@ -377,6 +395,12 @@ export function ask(data: QuestionUiData): Promise<number> {
       if (isCorrect) {
         window.setTimeout(() => finish(index), CORRECT_DELAY_MS);
       } else {
+        // La sigla se crea recién aquí (no existe en el DOM durante la pregunta).
+        if (data.acronymText !== null) {
+          const acronym = acronymEl(data.acronymText);
+          acronym.classList.add('question__acronym');
+          body.insertBefore(acronym, explanation);
+        }
         explanation.classList.remove('hidden');
         entendido.classList.remove('hidden');
       }
@@ -418,10 +442,16 @@ function failedServiceItem(serviceId: string): HTMLElement | null {
   const head = document.createElement('div');
   head.className = 'results__service-head';
   head.appendChild(iconEl(service.id, icon));
+  // Nombre y, debajo, la sigla (Tarea 13.2).
+  const names = document.createElement('div');
+  names.className = 'results__service-names';
   const name = document.createElement('span');
   name.className = 'results__service-name';
   name.textContent = service.name;
-  head.appendChild(name);
+  names.appendChild(name);
+  const acronym = acronymText(service);
+  if (acronym !== null) names.appendChild(acronymEl(acronym));
+  head.appendChild(names);
   item.appendChild(head);
 
   const fn = document.createElement('p');

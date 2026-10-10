@@ -57,6 +57,17 @@ describe('buildReviewData', () => {
     expect(data.icon).toEqual({ hasSvg: false, iconKey: 'S3', color: '#2F9E44' });
   });
 
+  it('Tarea 13.2: incluye la línea de la sigla si el servicio la tiene', () => {
+    expect(buildReviewData(SERVICE, CATEGORY, true, true).acronymText).toBeNull();
+    const conSigla: Service = {
+      ...SERVICE,
+      acronym: { abbr: 'S3', expansion: 'Simple Storage Service' },
+    };
+    expect(buildReviewData(conSigla, CATEGORY, false, true).acronymText).toBe(
+      'S3 = Simple Storage Service',
+    );
+  });
+
   it('si no hay categoría usa el id y el color de respaldo', () => {
     const data = buildReviewData(SERVICE, undefined, true, true);
     expect(data.categoryName).toBe('storage');

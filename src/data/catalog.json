@@ -74,6 +74,10 @@
       "kind": "service",
       "name": "Amazon EC2",
       "shortName": "EC2",
+      "acronym": {
+        "abbr": "EC2",
+        "expansion": "Elastic Compute Cloud"
+      },
       "iconKey": "EC2",
       "category": "compute",
       "domains": [
@@ -150,6 +154,10 @@
       "kind": "service",
       "name": "Amazon ECS",
       "shortName": "ECS",
+      "acronym": {
+        "abbr": "ECS",
+        "expansion": "Elastic Container Service"
+      },
       "iconKey": "ECS",
       "category": "containers",
       "domains": [
@@ -169,6 +177,10 @@
       "kind": "service",
       "name": "Amazon EKS",
       "shortName": "EKS",
+      "acronym": {
+        "abbr": "EKS",
+        "expansion": "Elastic Kubernetes Service"
+      },
       "iconKey": "EKS",
       "category": "containers",
       "domains": [
@@ -206,6 +218,10 @@
       "kind": "service",
       "name": "Amazon ECR",
       "shortName": "ECR",
+      "acronym": {
+        "abbr": "ECR",
+        "expansion": "Elastic Container Registry"
+      },
       "iconKey": "ECR",
       "category": "containers",
       "domains": [
@@ -224,6 +240,10 @@
       "kind": "service",
       "name": "Amazon S3",
       "shortName": "S3",
+      "acronym": {
+        "abbr": "S3",
+        "expansion": "Simple Storage Service"
+      },
       "iconKey": "S3",
       "category": "storage",
       "domains": [
@@ -246,6 +266,10 @@
       "kind": "service",
       "name": "Amazon EBS",
       "shortName": "EBS",
+      "acronym": {
+        "abbr": "EBS",
+        "expansion": "Elastic Block Store"
+      },
       "iconKey": "EBS",
       "category": "storage",
       "domains": [
@@ -265,6 +289,10 @@
       "kind": "service",
       "name": "Amazon EFS",
       "shortName": "EFS",
+      "acronym": {
+        "abbr": "EFS",
+        "expansion": "Elastic File System"
+      },
       "iconKey": "EFS",
       "category": "storage",
       "domains": [
@@ -284,6 +312,10 @@
       "kind": "service",
       "name": "Amazon S3 Glacier",
       "shortName": "S3 Glacier",
+      "acronym": {
+        "abbr": "S3",
+        "expansion": "Simple Storage Service"
+      },
       "iconKey": "GLC",
       "category": "storage",
       "domains": [
@@ -323,6 +355,10 @@
       "kind": "service",
       "name": "Amazon RDS",
       "shortName": "RDS",
+      "acronym": {
+        "abbr": "RDS",
+        "expansion": "Relational Database Service"
+      },
       "iconKey": "RDS",
       "category": "database",
       "domains": [
@@ -425,6 +461,10 @@
       "kind": "service",
       "name": "Amazon VPC",
       "shortName": "VPC",
+      "acronym": {
+        "abbr": "VPC",
+        "expansion": "Virtual Private Cloud"
+      },
       "iconKey": "VPC",
       "category": "networking",
       "domains": [
@@ -499,6 +539,10 @@
       "kind": "service",
       "name": "Elastic Load Balancing",
       "shortName": "ELB",
+      "acronym": {
+        "abbr": "ELB",
+        "expansion": "Elastic Load Balancing"
+      },
       "iconKey": "ELB",
       "category": "networking",
       "domains": [
@@ -517,6 +561,10 @@
       "kind": "service",
       "name": "Amazon API Gateway",
       "shortName": "API Gateway",
+      "acronym": {
+        "abbr": "API",
+        "expansion": "Application Programming Interface"
+      },
       "iconKey": "APIG",
       "category": "networking",
       "domains": [
@@ -535,6 +583,10 @@
       "kind": "service",
       "name": "AWS Identity and Access Management",
       "shortName": "IAM",
+      "acronym": {
+        "abbr": "IAM",
+        "expansion": "Identity and Access Management"
+      },
       "iconKey": "IAM",
       "category": "security",
       "domains": [
@@ -571,6 +623,10 @@
       "kind": "service",
       "name": "AWS WAF",
       "shortName": "WAF",
+      "acronym": {
+        "abbr": "WAF",
+        "expansion": "Web Application Firewall"
+      },
       "iconKey": "WAF",
       "category": "security",
       "domains": [
@@ -644,6 +700,10 @@
       "kind": "service",
       "name": "AWS Key Management Service",
       "shortName": "KMS",
+      "acronym": {
+        "abbr": "KMS",
+        "expansion": "Key Management Service"
+      },
       "iconKey": "KMS",
       "category": "security",
       "domains": [

@@ -78,11 +78,15 @@ export function nextStarCriterion(i: {
   return null;
 }
 
-/** Texto del §11.3: "Te faltaron 4 s para ★★★". */
+/**
+ * Texto del §11.3: "Te faltaron 4 s para ★★★". Por errores (Tarea 13.2):
+ * "Tuviste 3 errores de más para ★★" o, en singular, "Tuviste 1 error de más para ★★".
+ */
 export function missedCriterionText(m: MissedCriterion): string {
   const target = m.next === 2 ? '★★' : '★★★';
   if (m.cause === 'time') return `Te faltaron ${m.missing} s para ${target}`;
-  return `Te sobraron ${m.missing} errores para ${target}`;
+  const errores = m.missing === 1 ? 'error' : 'errores';
+  return `Tuviste ${m.missing} ${errores} de más para ${target}`;
 }
 
 /**

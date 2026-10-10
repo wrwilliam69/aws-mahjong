@@ -113,7 +113,21 @@ describe('nextStarCriterion', () => {
 describe('missedCriterionText', () => {
   it('formatea el tiempo y los errores para la siguiente estrella', () => {
     expect(missedCriterionText({ next: 3, cause: 'time', missing: 4 })).toBe('Te faltaron 4 s para ★★★');
-    expect(missedCriterionText({ next: 2, cause: 'errors', missing: 3 })).toBe('Te sobraron 3 errores para ★★');
+    expect(missedCriterionText({ next: 2, cause: 'errors', missing: 3 })).toBe(
+      'Tuviste 3 errores de más para ★★',
+    );
+  });
+
+  it('Tarea 13.2: errores de más en singular y en plural', () => {
+    expect(missedCriterionText({ next: 2, cause: 'errors', missing: 1 })).toBe(
+      'Tuviste 1 error de más para ★★',
+    );
+    expect(missedCriterionText({ next: 3, cause: 'errors', missing: 1 })).toBe(
+      'Tuviste 1 error de más para ★★★',
+    );
+    expect(missedCriterionText({ next: 3, cause: 'errors', missing: 2 })).toBe(
+      'Tuviste 2 errores de más para ★★★',
+    );
   });
 });
 

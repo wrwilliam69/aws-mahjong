@@ -1,7 +1,7 @@
 // Pregunta "¿para qué sirve?" conectada a la ventana HTML (Tarea 12 del PLAN.md):
 // sustituye al aviso provisional de la Tarea 11. Convierte una Question del core
 // en los datos de la ventana (textos del catálogo, ícono del servicio).
-import { catalog } from '../core/content';
+import { acronymText, catalog } from '../core/content';
 import type { Question } from '../core/questions';
 import { FALLBACK_CATEGORY_COLOR, type ReviewIconSpec } from '../core/review';
 import iconMap from '../data/icon-map.json';
@@ -29,6 +29,7 @@ export function onQuestion(question: Question): Promise<number> {
     serviceName: service.name,
     correctIndex: question.correctIndex,
     explanation: service.explanation,
+    acronymText: acronymText(service),
     icon,
     options: question.options.map((id) => ({
       functionText: catalog.services.find((s) => s.id === id)?.functionText ?? id,

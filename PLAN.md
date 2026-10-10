@@ -371,6 +371,23 @@ Bug confirmado en el navegador: con el filtro de escala de grises de la Tarea 12
 
 ---
 
+### [x] Tarea 13.2 — Siglas de los servicios y ajustes de texto
+
+1. **Catálogo** (contenido entregado por el usuario, copiado exacto): campo opcional `"acronym": { "abbr", "expansion" }` en 15 servicios: amazon-ec2 (EC2 = Elastic Compute Cloud), amazon-ecs (ECS = Elastic Container Service), amazon-eks (EKS = Elastic Kubernetes Service), amazon-ecr (ECR = Elastic Container Registry), amazon-s3 y amazon-s3-glacier (S3 = Simple Storage Service), amazon-ebs (EBS = Elastic Block Store), amazon-efs (EFS = Elastic File System), amazon-rds (RDS = Relational Database Service), amazon-vpc (VPC = Virtual Private Cloud), elastic-load-balancing (ELB = Elastic Load Balancing), amazon-api-gateway (API = Application Programming Interface), aws-iam (IAM = Identity and Access Management), aws-kms (KMS = Key Management Service) y aws-waf (WAF = Web Application Firewall). Va justo después de `shortName`.
+2. **`src/core/content.ts`:** tipo `Acronym` y `acronym?` en `Service`. Validación: si existe, `abbr` debe aparecer dentro de `shortName` (sensible a mayúsculas) y `expansion` tiene como máximo 60 caracteres (`MAX_ACRONYM_EXPANSION_CHARS`). Función pura `acronymText(service)` → `"ECS = Elastic Container Service"` o `null`. `ReviewData` (`src/core/review.ts`) incluye `acronymText`. Pruebas en `tests/content.test.ts` (catálogo real con las 15 siglas exactas, casos válidos e inválidos) y `tests/review.test.ts`.
+3. **La sigla se muestra solo después de responder**, como una línea pequeña y tenue (`.acronym-line`) debajo del nombre:
+   - en la tarjeta de repaso de abajo;
+   - en la ventana de respuesta incorrecta, justo encima de la explicación (el elemento se crea recién al fallar: no existe en el DOM durante la pregunta);
+   - en la lista "Servicios que fallaste" de los resultados.
+   Nunca en la pregunta "¿Para qué sirve…?".
+4. **Textos:** en resultados, "Tuviste N errores de más para ★★" (singular: "Tuviste 1 error de más para ★★") en vez de "Te sobraron N errores…". En el tutorial, "las grises están bloqueadas".
+
+**No se toca:** las reglas del juego.
+
+**Lista cuando:** en 360 px y en PC la línea de la sigla no rompe el diseño y nunca aparece en la pregunta; `npm test` + `npm run build` pasan.
+
+---
+
 ### [ ] Tarea 14 — Publicación en GitHub Pages
 
 **Haz:**

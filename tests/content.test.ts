@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import rawCatalog from '../src/data/catalog.json';
 import {
+  acronymText,
   CatalogError,
+  MAX_ACRONYM_EXPANSION_CHARS,
   MAX_FUNCTION_TEXT_CHARS,
   MAX_TILE_LINE_CHARS,
   MAX_TILE_LINES,
@@ -25,6 +27,7 @@ interface RawService {
   functionText: string;
   explanation: string;
   tileLines?: string[];
+  acronym?: unknown;
 }
 
 interface RawCategory {
@@ -193,6 +196,81 @@ describe('content: validaciones de functionText (§9.4)', () => {
     const cat = baseCatalog();
     cat.services[0].functionText = 'a'.repeat(MAX_FUNCTION_TEXT_CHARS + 1);
     expectProblem(cat, new RegExp(`${MAX_FUNCTION_TEXT_CHARS + 1} caracteres`));
+  });
+});
+
+describe('content: siglas (Tarea 13.2)', () => {
+  // Contenido entregado por el usuario: el catálogo debe tenerlo exacto.
+  const ESPERADAS: Record<string, { abbr: string; expansion: string }> = {
+    'amazon-ec2': { abbr: 'EC2', expansion: 'Elastic Compute Cloud' },
+    'amazon-ecs': { abbr: 'ECS', expansion: 'Elastic Container Service' },
+    'amazon-eks': { abbr: 'EKS', expansion: 'Elastic Kubernetes Service' },
+    'amazon-ecr': { abbr: 'ECR', expansion: 'Elastic Container Registry' },
+    'amazon-s3': { abbr: 'S3', expansion: 'Simple Storage Service' },
+    'amazon-s3-glacier': { abbr: 'S3', expansion: 'Simple Storage Service' },
+    'amazon-ebs': { abbr: 'EBS', expansion: 'Elastic Block Store' },
+    'amazon-efs': { abbr: 'EFS', expansion: 'Elastic File System' },
+    'amazon-rds': { abbr: 'RDS', expansion: 'Relational Database Service' },
+    'amazon-vpc': { abbr: 'VPC', expansion: 'Virtual Private Cloud' },
+    'elastic-load-balancing': { abbr: 'ELB', expansion: 'Elastic Load Balancing' },
+    'amazon-api-gateway': { abbr: 'API', expansion: 'Application Programming Interface' },
+    'aws-iam': { abbr: 'IAM', expansion: 'Identity and Access Management' },
+    'aws-kms': { abbr: 'KMS', expansion: 'Key Management Service' },
+    'aws-waf': { abbr: 'WAF', expansion: 'Web Application Firewall' },
+  };
+
+  it('el catálogo real tiene exactamente las 15 siglas entregadas', () => {
+    const conSigla = catalog.services.filter((s) => s.acronym !== undefined);
+    expect(conSigla.map((s) => s.id).sort()).toEqual(Object.keys(ESPERADAS).sort());
+    for (const s of conSigla) expect(s.acronym, s.id).toEqual(ESPERADAS[s.id]);
+  });
+
+  it('acronymText: "ECS = Elastic Container Service", o null sin sigla', () => {
+    const ecs = catalog.services.find((s) => s.id === 'amazon-ecs');
+    expect(ecs).toBeDefined();
+    if (ecs === undefined) return;
+    expect(acronymText(ecs)).toBe('ECS = Elastic Container Service');
+    const sinSigla = catalog.services.find((s) => s.acronym === undefined);
+    expect(sinSigla).toBeDefined();
+    if (sinSigla === undefined) return;
+    expect(acronymText(sinSigla)).toBeNull();
+  });
+
+  it('acepta una sigla contenida en el shortName', () => {
+    const cat = baseCatalog();
+    cat.services[0].shortName = 'S1 Plus';
+    cat.services[0].acronym = { abbr: 'S1', expansion: 'Servicio Uno' };
+    expect(problemsOf(cat)).toEqual([]);
+  });
+
+  it('rechaza una sigla que no aparece en el shortName (sensible a mayúsculas)', () => {
+    const cat = baseCatalog();
+    cat.services[0].acronym = { abbr: 'XYZ', expansion: 'Equis Ye Zeta' };
+    expectProblem(cat, /sigla "XYZ" no aparece en el shortName "S1"/);
+    const minusculas = baseCatalog();
+    minusculas.services[0].acronym = { abbr: 's1', expansion: 'Servicio Uno' };
+    expectProblem(minusculas, /sigla "s1" no aparece/);
+  });
+
+  it(`rechaza una expansion de más de ${MAX_ACRONYM_EXPANSION_CHARS} caracteres`, () => {
+    const cat = baseCatalog();
+    cat.services[0].acronym = { abbr: 'S1', expansion: 'e'.repeat(MAX_ACRONYM_EXPANSION_CHARS + 1) };
+    expectProblem(cat, new RegExp(`expansion de la sigla tiene ${MAX_ACRONYM_EXPANSION_CHARS + 1} caracteres`));
+    const justa = baseCatalog();
+    justa.services[0].acronym = { abbr: 'S1', expansion: 'e'.repeat(MAX_ACRONYM_EXPANSION_CHARS) };
+    expect(problemsOf(justa)).toEqual([]);
+  });
+
+  it('rechaza una sigla mal formada', () => {
+    const noObjeto = baseCatalog();
+    noObjeto.services[0].acronym = 'S1';
+    expectProblem(noObjeto, /\.acronym: debe ser un objeto/);
+    const vacia = baseCatalog();
+    vacia.services[0].acronym = { abbr: '', expansion: 'Servicio Uno' };
+    expectProblem(vacia, /\.acronym\.abbr: no puede estar vacío/);
+    const sinExpansion = baseCatalog();
+    sinExpansion.services[0].acronym = { abbr: 'S1' };
+    expectProblem(sinExpansion, /\.acronym\.expansion: debe ser texto/);
   });
 });
 

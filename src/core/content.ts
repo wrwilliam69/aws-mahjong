@@ -7,6 +7,8 @@
 // - `introOrder` es único en todo el catálogo, no por dominio.
 // - functionText no debe contener el nombre: sin distinguir mayúsculas y
 //   contra `name` y `shortName`.
+// - Tarea 13.2: `acronym` opcional ({ abbr, expansion }); `abbr` debe aparecer
+//   dentro de `shortName` y `expansion` tiene como máximo 60 caracteres.
 import rawCatalog from '../data/catalog.json';
 
 export type DomainId = 'D1' | 'D2' | 'D3' | 'D4';
@@ -18,6 +20,7 @@ export const MIN_SERVICES_PER_CATEGORY = 3;
 export const MAX_TILE_LINES = 2;
 export const MAX_TILE_LINE_CHARS = 11;
 export const MAX_FUNCTION_TEXT_CHARS = 90;
+export const MAX_ACRONYM_EXPANSION_CHARS = 60;
 /** Fase 1: el nivel más grande es T3, 16 fichas = 8 parejas. */
 export const MIN_SERVICES_PHASE1 = 8;
 
@@ -30,11 +33,18 @@ export interface Category {
   related: CategoryId[];
 }
 
+/** Sigla del servicio y su significado (Tarea 13.2), p. ej. ECS = Elastic Container Service. */
+export interface Acronym {
+  abbr: string;
+  expansion: string;
+}
+
 export interface Service {
   id: string;
   kind: 'service' | 'concept';
   name: string;
   shortName: string;
+  acronym?: Acronym;
   tileLines?: string[];
   iconKey: string;
   category: CategoryId;
@@ -67,6 +77,15 @@ export class CatalogError extends Error {
 /** Texto de la ficha de nombre: `tileLines` si existe, si no `shortName` partido por espacios. */
 export function tileLinesOf(service: Service): string[] {
   return service.tileLines ?? service.shortName.split(' ');
+}
+
+/**
+ * Línea de la sigla: "ECS = Elastic Container Service", o null si el servicio no
+ * tiene. Solo se muestra después de responder, nunca en la pregunta (Tarea 13.2).
+ */
+export function acronymText(service: Service): string | null {
+  if (service.acronym === undefined) return null;
+  return `${service.acronym.abbr} = ${service.acronym.expansion}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -107,6 +126,17 @@ function readStringList(value: unknown, field: string, problems: string[]): stri
   return out;
 }
 
+function readAcronym(value: unknown, field: string, problems: string[]): Acronym | null {
+  if (!isRecord(value)) {
+    problems.push(`${field}: debe ser un objeto { abbr, expansion }`);
+    return null;
+  }
+  const abbr = readString(value.abbr, `${field}.abbr`, problems);
+  const expansion = readString(value.expansion, `${field}.expansion`, problems);
+  if (abbr === null || expansion === null) return null;
+  return { abbr, expansion };
+}
+
 function readCategory(raw: unknown, index: number, problems: string[]): Category | null {
   const field = `categories[${index}]`;
   if (!isRecord(raw)) {
@@ -138,6 +168,8 @@ function readService(raw: unknown, index: number, problems: string[]): Service |
   const explanation = readString(raw.explanation, `${field}.explanation`, problems);
   const introOrder = readInteger(raw.introOrder, `${field}.introOrder`, problems);
   const since = readInteger(raw.since, `${field}.since`, problems);
+  const acronym =
+    raw.acronym === undefined ? undefined : readAcronym(raw.acronym, `${field}.acronym`, problems);
   const tileLines =
     raw.tileLines === undefined ? undefined : readStringList(raw.tileLines, `${field}.tileLines`, problems);
   const confusableWith =
@@ -173,13 +205,16 @@ function readService(raw: unknown, index: number, problems: string[]): Service |
     problems.push(`${field}.domains: dominio desconocido "${badDomain}"`);
     return null;
   }
-  if (tileLines === null || confusableWith === null || excludeAsDistractor === null) return null;
+  if (acronym === null || tileLines === null || confusableWith === null || excludeAsDistractor === null) {
+    return null;
+  }
 
   return {
     id,
     kind,
     name,
     shortName,
+    ...(acronym === undefined ? {} : { acronym }),
     ...(tileLines === undefined ? {} : { tileLines }),
     iconKey,
     category,
@@ -271,6 +306,20 @@ function checkCatalog(catalog: Catalog, problems: string[]): void {
     }
     if (text.includes(s.shortName.toLowerCase())) {
       problems.push(`servicio "${s.id}": functionText contiene el shortName "${s.shortName}"`);
+    }
+
+    // Tarea 13.2: la sigla debe estar dentro del shortName (sensible a mayúsculas).
+    if (s.acronym !== undefined) {
+      if (!s.shortName.includes(s.acronym.abbr)) {
+        problems.push(
+          `servicio "${s.id}": la sigla "${s.acronym.abbr}" no aparece en el shortName "${s.shortName}"`,
+        );
+      }
+      if (s.acronym.expansion.length > MAX_ACRONYM_EXPANSION_CHARS) {
+        problems.push(
+          `servicio "${s.id}": expansion de la sigla tiene ${s.acronym.expansion.length} caracteres (máx. ${MAX_ACRONYM_EXPANSION_CHARS})`,
+        );
+      }
     }
 
     const lines = tileLinesOf(s);
