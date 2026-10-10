@@ -416,6 +416,21 @@ Feedback del usuario: (a) en tableros planos no entendía por qué una ficha est
 
 ---
 
+### [x] Tarea 13.5 — Fichas libres levantadas y bloqueadas hundidas
+
+Feedback del usuario: las fichas bloqueadas siguen pareciendo tocables. El gris solo no basta: tienen el mismo relieve, sombra y tamaño que las libres, así que se perciben como botones habilitados (caso real: el nombre "EC2" atrapado entre "EKS" y el ícono de EKS se veía igual que las libres). Libre vs bloqueada debe diferenciarse **físicamente**, no solo por color.
+
+1. **Libre: "levantada"** — sombra/canto 3D marcado, escala 1.0, cara clara a todo color y un borde claro sutil (1–2 px) que la resalte.
+2. **Bloqueada: "hundida"** — SIN sombra ni canto 3D (pegada al tablero), escala ~0.92 centrada en su posición, cara más oscura y con algo de transparencia (alpha ~0.75), además del gris que ya tiene (Tarea 13.1). Sin borde claro.
+3. **Al liberarse**, la ficha pasa de hundida a levantada con una animación corta (~200 ms: crece a 1.0, aparece la sombra y recupera el color), para que se note que "se despertó".
+4. **El rectángulo de toque NO cambia por la escala** (sigue siendo el de la ficha completa, §3.4), así el aviso y el resaltado rojo de la Tarea 13.4 siguen funcionando al tocarla.
+5. **No cambia** la posición del tablero ni la tarjeta de arriba (Tarea 13.6): el tablero no se mueve durante la partida.
+6. Verificado en un tablero plano (nivel 1) y en uno con pisos (nivel 3), en 360 px y en PC. `npm test` y `npm run build` pasan. No se hace git commit ni push.
+
+**Hecho** (`src/scenes/LevelScene.ts`): constantes `BLOCKED_SCALE` (0,92), `BLOCKED_FACE_ALPHA` (0,75), `BLOCKED_DARKEN` (0,25), `LIFT_STROKE`/`LIFT_STROKE_ALPHA` (blanco al 50 %)/`LIFT_STROKE_WIDTH` (2 px) y `EDGE_OFFSET_X/Y_RATIO`; `UNBLOCK_FADE_MS` pasa de 150 a 200 ms. `paintBlockFx` interpola el hundimiento (escala, alpha de la cara, sombra, canto y oscurecido del gris) según `blockFx.t`; `refreshTiles` pone el borde claro solo a las libres, quita el borde a las bloqueadas y conserva el resaltado de selección y el rojo de los bloqueantes. El área de toque (`halfW`/`halfH`/`centerX`/`centerY`) no cambia. No se tocó `src/core` ni el layout del tablero.
+
+---
+
 ### [x] Tarea 13.6 — Tarjeta informativa arriba y tablero abajo
 
 **Lee:** `AGENTS.md` §6.

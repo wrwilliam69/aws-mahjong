@@ -62,6 +62,10 @@ const LAYER_OFFSET_Y = -7;
 const CAST_SHADOW_X = 10;
 const CAST_SHADOW_Y = 12;
 const CAST_SHADOW_ALPHA = 0.3;
+// Desplazamiento del canto 3D respecto de la cara (fracción del lado de la ficha):
+// es el relieve que hace que la ficha libre se vea "levantada".
+const EDGE_OFFSET_X_RATIO = 0.06;
+const EDGE_OFFSET_Y_RATIO = 0.08;
 const TILE_MAX_FONT = 22;
 const NAME_BG = 0xf3ecdc;
 const NAME_TEXT = '#241f18';
@@ -69,6 +73,21 @@ const SELECTED_STROKE = 0x00e5ff;
 /** Borde rojo temporal de las fichas que bloquean a la que se tocó (Tarea 13.4). */
 const BLOCKER_STROKE = 0xff3b30;
 const BLOCKER_HIGHLIGHT_MS = 600;
+// Tarea 13.5: libre vs bloqueada se diferencian FÍSICAMENTE, no solo por color.
+// La libre está "levantada" (escala 1, canto 3D, sombra y borde claro sutil); la
+// bloqueada está "hundida" (sin sombra ni canto, escala encogida, cara oscura y
+// translúcida). El rectángulo de toque NO cambia: sigue siendo el de la ficha
+// completa, así el aviso y el resaltado rojo de la Tarea 13.4 siguen valiendo.
+/** Escala de la ficha hundida (bloqueada), centrada en su posición. */
+const BLOCKED_SCALE = 0.92;
+/** Alpha de la cara de la ficha hundida (algo de transparencia, Tarea 13.5). */
+const BLOCKED_FACE_ALPHA = 0.75;
+/** Cuánto se oscurece la cara de la bloqueada, además del gris de la Tarea 13.1. */
+const BLOCKED_DARKEN = 0.25;
+/** Borde claro sutil (1–2 px lógicos ≈ 1,85 reales a 360 px) de la ficha libre. */
+const LIFT_STROKE = 0xffffff;
+const LIFT_STROKE_ALPHA = 0.5;
+const LIFT_STROKE_WIDTH = 2;
 /** El SVG ocupa el 75 % de la cara de la ficha de ícono. */
 const ICON_FILL_RATIO = 0.75;
 /** Rasterizado del SVG al doble del tamaño dibujado, para que se vea nítido. */
@@ -86,8 +105,8 @@ const USE_GRAYSCALE_FILTER = true;
 const BLOCKED_OVERLAY_ALPHA = 0.65;
 /** Tinte gris oscuro del ícono SVG en el respaldo sin filtro. */
 const BLOCKED_ICON_TINT = 0x5a5a5a;
-/** Transición al bloquear o desbloquear una ficha. */
-const UNBLOCK_FADE_MS = 150;
+/** Animación al liberarse la ficha (hundida → levantada): ~200 ms (Tarea 13.5). */
+const UNBLOCK_FADE_MS = 200;
 
 export interface BoardLayout {
   unit: number;
@@ -458,7 +477,13 @@ export class LevelScene extends Phaser.Scene {
       .rectangle(CAST_SHADOW_X, CAST_SHADOW_Y, tileSize, tileSize, 0x000000, CAST_SHADOW_ALPHA)
       .setRounded(radius);
     const base = this.add
-      .rectangle(tileSize * 0.06, tileSize * 0.08, tileSize, tileSize, edgeColor)
+      .rectangle(
+        tileSize * EDGE_OFFSET_X_RATIO,
+        tileSize * EDGE_OFFSET_Y_RATIO,
+        tileSize,
+        tileSize,
+        edgeColor,
+      )
       .setRounded(radius);
     const face = this.add.rectangle(0, 0, tileSize, tileSize, faceColor).setRounded(radius);
 
@@ -565,7 +590,7 @@ export class LevelScene extends Phaser.Scene {
 
   // --- Estado visual -------------------------------------------------------
 
-  /** Refresca el gris de las bloqueadas (con transición) y el resaltado. */
+  /** Refresca el hundimiento de las bloqueadas (con transición) y el resaltado. */
   private refreshTiles(): void {
     for (const view of this.views) {
       if (view.removed) continue;
@@ -573,8 +598,12 @@ export class LevelScene extends Phaser.Scene {
       this.applyBlockedVisual(view, blocked);
       if (this.rt.selected === view.slot) {
         view.face.setStrokeStyle(4, SELECTED_STROKE, 1);
+      } else if (blocked) {
+        // Hundida: sin borde claro (solo el gris/oscurecido de su cara).
+        view.face.setStrokeStyle();
       } else {
-        view.face.setStrokeStyle(2, 0x000000, 0.2);
+        // Levantada: borde claro sutil que la resalta (Tarea 13.5).
+        view.face.setStrokeStyle(LIFT_STROKE_WIDTH, LIFT_STROKE, LIFT_STROKE_ALPHA);
       }
     }
     this.initialPaint = false;
@@ -654,11 +683,30 @@ export class LevelScene extends Phaser.Scene {
   /** Pinta el nivel de bloqueo actual (`blockFx.t`) según el modo activo. */
   private paintBlockFx(view: TileView): void {
     const t = view.blockFx.t;
+
+    // Hundimiento físico (Tarea 13.5): la bloqueada se pega al tablero (sin
+    // sombra ni canto 3D), encoge al 0,92 y se oscurece/translúcida; al liberarse
+    // crece a 1, recupera la sombra, el canto y el color (se "despierta").
+    view.container.setScale(1 - (1 - BLOCKED_SCALE) * t);
+    view.shadow.setAlpha(CAST_SHADOW_ALPHA * (1 - t));
+    // El canto se desvanece y se pega a la cara: sin relieve cuando está hundida.
+    view.base.setAlpha(1 - t);
+    view.base.setPosition(
+      view.halfW * 2 * EDGE_OFFSET_X_RATIO * (1 - t),
+      view.halfH * 2 * EDGE_OFFSET_Y_RATIO * (1 - t),
+    );
+    view.face.setAlpha(1 - (1 - BLOCKED_FACE_ALPHA) * t);
+    // El contenido (ícono o texto) se acompasa con la translucidez de la cara.
+    for (const obj of view.content) obj.setAlpha(1 - (1 - BLOCKED_FACE_ALPHA) * t);
+
     if (view.grayscale !== null) {
-      // Con filtro: gris en el contenido; cara y canto (colores planos) a su gris exacto.
+      // Con filtro: gris en el contenido; cara y canto (colores planos) a su gris
+      // exacto, oscurecido además cuando está hundida.
       for (const cm of view.grayscale) cm.alpha = t;
-      view.face.setFillStyle(lerpColor(view.faceColor, grayOf(view.faceColor), t));
-      view.base.setFillStyle(lerpColor(view.edgeColor, grayOf(view.edgeColor), t));
+      const faceTarget = darken(grayOf(view.faceColor), 1 - BLOCKED_DARKEN * t);
+      view.face.setFillStyle(lerpColor(view.faceColor, faceTarget, t));
+      const edgeTarget = darken(grayOf(view.edgeColor), 1 - BLOCKED_DARKEN * t);
+      view.base.setFillStyle(lerpColor(view.edgeColor, edgeTarget, t));
       return;
     }
     // Respaldo sin filtro: capa oscura ~65 % y tinte gris oscuro en el ícono.
