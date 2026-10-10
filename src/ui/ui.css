@@ -449,6 +449,30 @@ body {
   text-align: center;
 }
 
+/* Botón "Práctica libre" (Tarea 13.3): arriba de la lista, solo con al menos
+   2 niveles completados. Se distingue en azul de los niveles. */
+.menu__practice {
+  width: 100%;
+  min-height: calc(100cqw * 56 / 390);
+  margin-bottom: calc(100cqw * 14 / 390);
+  box-sizing: border-box;
+  padding: calc(100cqw * 10 / 390) calc(100cqw * 12 / 390);
+  border-radius: calc(100cqw * 12 / 390);
+  border: 2px solid #1c7ed6;
+  background: #1c7ed6;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: calc(100cqw * 18 / 390);
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+}
+
+.menu__practice:active {
+  background: #1864ab;
+  border-color: #1864ab;
+}
+
 .menu__list {
   display: flex;
   flex-direction: column;

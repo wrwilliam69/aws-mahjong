@@ -334,7 +334,7 @@ Problema: el tablero se lee como una sola capa plana: es difícil distinguir los
    - Nivel 4 "Redes": t2-cuna-12, introOrder 19–24.
    - Nivel 5 "Seguridad": t3-medias-16, introOrder 25–32.
    - Nivel 6 "Gestión y costos": t3-escalera-16, introOrder 33–40.
-   Selecciona los servicios por introOrder desde el catálogo (no escribas los ids a mano). Semilla fija por nivel ('nivel-1' … 'nivel-6'). Prueba en tests/: cada nivel tiene exactamente n/2 servicios para su plantilla, sin repetidos, y todos generan tablero con generateBoard.
+   Selecciona los servicios por introOrder desde el catálogo (no escribas los ids a mano). Semilla fija por nivel ('nivel-1' … 'nivel-6'): desde la Tarea 13.3 el juego no la usa directamente; cada partida y reintento genera una semilla 'nivel-<n>#<número>' en la capa de UI/escena. Prueba en tests/: cada nivel tiene exactamente n/2 servicios para su plantilla, sin repetidos, y todos generan tablero con generateBoard.
 
 2. Quita el tablero de prueba de la Tarea 11 (plantilla T3 + 8 servicios fijos). El juego arranca en el menú.
 
@@ -385,6 +385,21 @@ Bug confirmado en el navegador: con el filtro de escala de grises de la Tarea 12
 **No se toca:** las reglas del juego.
 
 **Lista cuando:** en 360 px y en PC la línea de la sigla no rompe el diseño y nunca aparece en la pregunta; `npm test` + `npm run build` pasan.
+
+---
+
+### [x] Tarea 13.3 — Variedad entre partidas y modo Práctica libre
+
+**Lee:** `AGENTS.md` §5 (determinismo).
+
+Feedback del usuario: cada nivel sale idéntico siempre; en estos juegos nunca se empieza igual.
+
+1. **Semilla por partida:** cada vez que se inicia o se reintenta un nivel, se usa una semilla nueva con la forma `nivel-<n>#<número>`. El número sale de un contador guardado en localStorage (`src/ui/seed.ts`, con try/catch; si falla, usa `Date.now()`). Esto se resuelve en la capa de UI/escena, **NO en `src/core`**: el core sigue recibiendo la semilla como texto y siendo determinista (prohibido el generador aleatorio global en `src/core`). Mismos servicios del nivel; cambian la posición de las fichas y las opciones de las preguntas. "Reintentar" también usa una semilla nueva.
+2. **Modo "Práctica libre":** botón en el menú, arriba de la lista de niveles, que solo aparece cuando hay al menos 2 niveles completados.
+   - Toma al azar (con la semilla de la partida) servicios de los niveles ya completados: 6 servicios con una plantilla tier 1 si hay pocos completados, u 8 con una plantilla tier 3 cuando ya se completó el nivel 5.
+   - La selección (`selectPractice` en `src/core/practice.ts`) es una función pura con la semilla como parámetro, ordenando por id antes de sortear (§5). Pruebas en `tests/practice.test.ts`: misma semilla ⇒ misma selección; semillas distintas ⇒ (en general) selecciones distintas; nunca servicios de niveles bloqueados; y las selecciones generan tableros válidos.
+   - Resultados de Práctica libre: estrellas, puntos y fallados como siempre, pero **no** guarda récords de nivel ni desbloquea nada. Botones "Otra partida" (nueva semilla) y "Menú".
+3. Verificado en 360 px y en PC. `npm test` y `npm run build` pasan.
 
 ---
 

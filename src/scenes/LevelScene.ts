@@ -9,20 +9,33 @@ import * as Phaser from 'phaser';
 import type { TileSpec } from '../core/assign';
 import { catalog, tileLinesOf, type Category, type Service } from '../core/content';
 import { isFree } from '../core/geometry';
-import type { BoardSetup } from '../core/generator';
+import { generateBoard, type BoardSetup } from '../core/generator';
 import { LevelRuntime } from '../core/level-runtime';
 import type { TierConfig } from '../core/peel';
 import { loadSave, persistSave } from '../core/persistence';
-import { mergeLevelRun, type LevelRun } from '../core/progress';
+import { selectPractice } from '../core/practice';
+import { bestStarsOf, mergeLevelRun, type LevelRun } from '../core/progress';
 import type { Question } from '../core/questions';
 import { buildReviewData } from '../core/review';
 import { buildResults, errorLimitFor3Stars, failedServiceIds } from '../core/results';
+import { makeRng } from '../core/rng';
 import { pairPoints } from '../core/scoring';
 import { isPairFree } from '../core/solve';
 import iconMap from '../data/icon-map.json';
-import { generateLevelSetup, LEVELS, tierConfigForLevel, type LevelDef } from '../data/levels';
+import { ALL_TEMPLATES } from '../data/layouts';
+import {
+  generateLevelSetup,
+  LEVELS,
+  tierConfigForLevel,
+  tierConfigForTemplate,
+  type LevelDef,
+} from '../data/levels';
 import * as ui from '../ui/game-ui';
 import { onQuestion } from '../ui/question';
+import { nextSeed } from '../ui/seed';
+
+/** Prefijo de las semillas de Práctica libre (Tarea 13.3). */
+const PRACTICE_SEED_BASE = 'practica-libre';
 
 // Lienzo lógico 390 × 844 con Scale.FIT (§6). En una pantalla real de 360 px el
 // factor es 360/390 ≈ 0,923, así que 15 px lógicos ≈ 13,8 px reales: por encima
@@ -76,8 +89,8 @@ export interface BoardLayout {
 }
 
 export interface LevelSceneData {
-  /** Nivel de la campaña que se está jugando (Tarea 13). */
-  level: LevelDef;
+  /** Nivel de la campaña que se está jugando; null en Práctica libre (Tarea 13.3). */
+  level: LevelDef | null;
   setup: BoardSetup;
   cfg: TierConfig;
   /**
@@ -87,12 +100,41 @@ export interface LevelSceneData {
   onQuestion: (question: Question) => Promise<number>;
 }
 
-/** Datos de una partida del nivel: tablero con su semilla fija + pregunta HTML. */
+/**
+ * Datos de una partida del nivel: tablero con semilla nueva por partida
+ * ('nivel-<n>#<número>') + pregunta HTML. Cada inicio y cada reintento genera
+ * una semilla distinta (Tarea 13.3); el core recibe la semilla como texto.
+ */
 export function buildLevelData(level: LevelDef): LevelSceneData {
   return {
     level,
-    setup: generateLevelSetup(level),
+    setup: generateLevelSetup(level, nextSeed(level.id)),
     cfg: tierConfigForLevel(level),
+    onQuestion,
+  };
+}
+
+/**
+ * Partida de Práctica libre (Tarea 13.3): semilla nueva por partida, servicios
+ * de los niveles ya completados (selección pura de `src/core/practice`) y una
+ * plantilla del tier correspondiente.
+ */
+export function buildPracticeData(): LevelSceneData {
+  const save = loadSave();
+  const completed = LEVELS.filter((l) => bestStarsOf(save, l.id) !== null).map((l) => l.id);
+  const seed = nextSeed(PRACTICE_SEED_BASE);
+  const selection = selectPractice(seed, completed);
+  const template = ALL_TEMPLATES.find((t) => t.id === selection.templateId);
+  if (template === undefined) {
+    throw new Error(
+      `LevelScene: la plantilla "${selection.templateId}" de Práctica libre no existe`,
+    );
+  }
+  const cfg = tierConfigForTemplate(template);
+  return {
+    level: null,
+    setup: generateBoard(template, selection.services, cfg, makeRng(seed)),
+    cfg,
     onQuestion,
   };
 }
@@ -766,11 +808,28 @@ export class LevelScene extends Phaser.Scene {
       points: this.score,
       timeMs: this.rt.boardTimeMs,
     };
-    persistSave(mergeLevelRun(loadSave(), this.levelData.level.id, run));
 
-    const nextLevel = LEVELS.find((l) => l.number === this.levelData.level.number + 1);
+    // Práctica libre (Tarea 13.3): estrellas, puntos y fallados igual que
+    // siempre, pero NO guarda récords de nivel ni desbloquea nada. Botones
+    // "Otra partida" (nueva semilla) y "Menú".
+    const level = this.levelData.level;
+    if (level === null) {
+      ui.showResults(results, {
+        retryLabel: 'Otra partida',
+        onRetry: () => this.scene.restart(buildPracticeData()),
+        onMenu: () => this.goToMenu(),
+      });
+      return;
+    }
+
+    // Guarda los récords del nivel (mejores estrellas, puntos y tiempo por
+    // separado) antes de mostrar resultados: así "Siguiente" ya está abierto.
+    persistSave(mergeLevelRun(loadSave(), level.id, run));
+
+    const nextLevel = LEVELS.find((l) => l.number === level.number + 1);
     ui.showResults(results, {
-      onRetry: () => this.scene.restart(this.levelData),
+      // Reintentar usa una semilla nueva (Tarea 13.3).
+      onRetry: () => this.scene.restart(buildLevelData(level)),
       onNext: nextLevel === undefined ? undefined : () => this.startLevel(nextLevel),
       onMenu: () => this.goToMenu(),
     });
@@ -782,7 +841,7 @@ export class LevelScene extends Phaser.Scene {
     this.scene.start('TitleScene');
   }
 
-  /** Entra a otro nivel con su tablero de semilla fija ("Siguiente"). */
+  /** Entra a otro nivel con una semilla nueva por partida ("Siguiente"). */
   private startLevel(level: LevelDef): void {
     ui.clearOverlays();
     this.scene.start('LevelScene', buildLevelData(level));

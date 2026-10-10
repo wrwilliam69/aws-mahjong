@@ -10,6 +10,7 @@ import { CARD_HEIGHT_RATIO } from './layout';
 export { CARD_HEIGHT_RATIO };
 import { acronymText, catalog, type Category } from '../core/content';
 import { loadSave } from '../core/persistence';
+import { PRACTICE_MIN_COMPLETED } from '../core/practice';
 import { bestStarsOf, isUnlocked } from '../core/progress';
 import { FALLBACK_CATEGORY_COLOR, type ReviewData, type ReviewIconSpec } from '../core/review';
 import { missedCriterionText, type ResultsData } from '../core/results';
@@ -81,11 +82,15 @@ function starsText(stars: number | null): string {
 }
 
 /**
- * Menú principal (Tarea 13): título "AWS Mahjong" y la lista de los 6 niveles
- * con su número, tema, mejores estrellas y candado si está bloqueado. Tocar un
- * nivel bloqueado no hace nada más que un temblor corto.
+ * Menú principal (Tareas 13 y 13.3): título "AWS Mahjong", el botón "Práctica
+ * libre" (solo con al menos 2 niveles completados, arriba de la lista) y la
+ * lista de los 6 niveles con número, tema, mejores estrellas y candado si está
+ * bloqueado. Tocar un nivel bloqueado no hace nada más que un temblor corto.
  */
-export function showMenu(callbacks: { onPlay: (level: LevelDef) => void }): void {
+export function showMenu(callbacks: {
+  onPlay: (level: LevelDef) => void;
+  onPractice: () => void;
+}): void {
   clearOverlays();
   const save = loadSave();
   const menu = overlay('menu');
@@ -94,6 +99,20 @@ export function showMenu(callbacks: { onPlay: (level: LevelDef) => void }): void
   title.className = 'menu__title';
   title.textContent = 'AWS Mahjong';
   menu.appendChild(title);
+
+  // Práctica libre (Tarea 13.3): solo cuando hay al menos 2 niveles completados.
+  const completed = LEVELS.filter((l) => bestStarsOf(save, l.id) !== null).length;
+  if (completed >= PRACTICE_MIN_COMPLETED) {
+    const practiceBtn = document.createElement('button');
+    practiceBtn.type = 'button';
+    practiceBtn.className = 'menu__practice';
+    practiceBtn.textContent = 'Práctica libre';
+    practiceBtn.addEventListener('click', () => {
+      menu.remove();
+      callbacks.onPractice();
+    });
+    menu.appendChild(practiceBtn);
+  }
 
   const list = document.createElement('div');
   list.className = 'menu__list';
@@ -464,6 +483,8 @@ function failedServiceItem(serviceId: string): HTMLElement | null {
 
 export interface ResultsCallbacks {
   onRetry: () => void;
+  /** Etiqueta del botón de repetir: por defecto "Reintentar"; en Práctica libre, "Otra partida". */
+  retryLabel?: string;
   /** Solo se muestra si hay un nivel siguiente (ya desbloqueado al completar este). */
   onNext?: () => void;
   onMenu: () => void;
@@ -545,7 +566,7 @@ export function showResults(data: ResultsData, callbacks: ResultsCallbacks): voi
   const retry = document.createElement('button');
   retry.type = 'button';
   retry.className = 'results__retry';
-  retry.textContent = 'Reintentar';
+  retry.textContent = callbacks.retryLabel ?? 'Reintentar';
   retry.addEventListener('click', () => {
     ov.remove();
     callbacks.onRetry();

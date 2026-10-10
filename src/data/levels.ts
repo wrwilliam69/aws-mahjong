@@ -88,19 +88,24 @@ export function servicesForLevel(level: LevelDef): Service[] {
     .sort((a, b) => a.introOrder - b.introOrder);
 }
 
-/** Config del tier de la plantilla del nivel. */
-export function tierConfigForLevel(level: LevelDef): TierConfig {
-  const tier = (templateOf(level).tiers[0] ?? 1) as TierId;
+/** Config del tier de una plantilla: tier base y pesos de distancia de §7.4. */
+export function tierConfigForTemplate(template: Template): TierConfig {
+  const tier = (template.tiers[0] ?? 1) as TierId;
   return { tier, distWeights: TIER_DIST_WEIGHTS[tier] };
 }
 
-/** Tablero del nivel con su semilla fija (`generateBoard` de la Tarea 7). */
-export function generateLevelSetup(level: LevelDef): BoardSetup {
+/** Config del tier de la plantilla del nivel. */
+export function tierConfigForLevel(level: LevelDef): TierConfig {
+  return tierConfigForTemplate(templateOf(level));
+}
+
+/**
+ * Tablero del nivel para una semilla dada (`generateBoard` de la Tarea 7).
+ * Desde la Tarea 13.3 la semilla la entrega la capa de UI/escena con la forma
+ * 'nivel-<n>#<número>': cambia en cada partida y en cada reintento. El core solo
+ * la recibe como texto y sigue siendo determinista.
+ */
+export function generateLevelSetup(level: LevelDef, seed: string): BoardSetup {
   const services = servicesForLevel(level).map((s) => s.id);
-  return generateBoard(
-    templateOf(level),
-    services,
-    tierConfigForLevel(level),
-    makeRng(level.seed),
-  );
+  return generateBoard(templateOf(level), services, tierConfigForLevel(level), makeRng(seed));
 }
