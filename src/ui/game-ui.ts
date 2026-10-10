@@ -10,6 +10,7 @@ import { CARD_HEIGHT_RATIO, HINT_BAR_HEIGHT, LOGICAL_WIDTH, TOP_BAR_HEIGHT } fro
 export { CARD_HEIGHT_RATIO, HINT_BAR_HEIGHT, TOP_BAR_HEIGHT };
 import { acronymText, catalog, type Category } from '../core/content';
 import { loadSave } from '../core/persistence';
+import { weakServicesCount } from '../core/memory';
 import { PRACTICE_MIN_COMPLETED } from '../core/practice';
 import { bestStarsOf, isUnlocked } from '../core/progress';
 import {
@@ -128,6 +129,16 @@ export function showMenu(callbacks: {
       callbacks.onPractice();
     });
     menu.appendChild(practiceBtn);
+
+    // Tarea 16: debajo de "Práctica libre", cuántos servicios conviene repasar
+    // (más fallos que aciertos). Aparece solo cuando hay al menos uno.
+    const reviewCount = weakServicesCount(save.memory);
+    if (reviewCount > 0) {
+      const review = document.createElement('p');
+      review.className = 'menu__review';
+      review.textContent = `Para repasar: ${reviewCount} servicios`;
+      menu.appendChild(review);
+    }
   }
 
   const list = document.createElement('div');

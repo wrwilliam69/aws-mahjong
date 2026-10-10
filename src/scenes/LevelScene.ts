@@ -15,7 +15,7 @@ import { LevelRuntime } from '../core/level-runtime';
 import type { TierConfig } from '../core/peel';
 import { loadSave, persistSave } from '../core/persistence';
 import { selectPractice } from '../core/practice';
-import { bestStarsOf, mergeLevelRun, type LevelRun } from '../core/progress';
+import { bestStarsOf, beginGame, mergeLevelRun, recordServiceAnswer, type LevelRun } from '../core/progress';
 import type { Question } from '../core/questions';
 import { buildReviewData } from '../core/review';
 import { buildResults, errorLimitFor3Stars, failedServiceIds } from '../core/results';
@@ -159,7 +159,10 @@ export function buildPracticeData(): LevelSceneData {
   const save = loadSave();
   const completed = LEVELS.filter((l) => bestStarsOf(save, l.id) !== null).map((l) => l.id);
   const seed = nextSeed(PRACTICE_SEED_BASE);
-  const selection = selectPractice(seed, completed);
+  // Tarea 16: la selección prioriza los servicios más fallados y los que hace
+  // más partidas que no salen. gameNumber es la partida que se está empezando.
+  const gameNumber = save.levelCounter + 1;
+  const selection = selectPractice(seed, completed, save.memory, gameNumber);
   const template = ALL_TEMPLATES.find((t) => t.id === selection.templateId);
   if (template === undefined) {
     throw new Error(
@@ -281,6 +284,9 @@ export class LevelScene extends Phaser.Scene {
   private serviceById = new Map<string, Service>();
   private categoryById = new Map<string, Category>();
 
+  /** Número de esta partida (levelCounter, §10.3): data cuándo sale cada servicio. */
+  private gameNumber = 0;
+
   constructor() {
     super({ key: 'LevelScene' });
   }
@@ -290,6 +296,13 @@ export class LevelScene extends Phaser.Scene {
     this.setup = data.setup;
     this.rt = new LevelRuntime(data.setup, data.cfg);
     this.onQuestion = data.onQuestion;
+
+    // Tarea 16: el número de esta partida es el contador de partidas iniciadas
+    // (§10.3), que se incrementa y se persiste aquí mismo. Vale también para
+    // "Reintentar" y para la Práctica libre.
+    const begun = beginGame(loadSave());
+    persistSave(begun.save);
+    this.gameNumber = begun.gameNumber;
 
     this.views = [];
     this.score = 0;
@@ -912,6 +925,10 @@ export class LevelScene extends Phaser.Scene {
     const chosen = await this.onQuestion(question);
     const answer = this.rt.answer(chosen);
     if (answer === null) return;
+
+    // Tarea 16: estadísticas por servicio (aciertos, fallos y última partida),
+    // se actualizan tras cada respuesta, en niveles y en Práctica libre.
+    persistSave(recordServiceAnswer(loadSave(), answer.serviceId, answer.correct, this.gameNumber));
 
     const zMax = Math.max(this.setup.slots[a][2], this.setup.slots[b][2]);
     this.score += pairPoints(zMax, answer.correct);

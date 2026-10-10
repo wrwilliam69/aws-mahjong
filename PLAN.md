@@ -482,6 +482,18 @@ Combos (§11.2), repetición espaciada (§10), selección de servicios por nivel
 6. El tablero no se mueve al aparecer el botón (Tarea 13.6): la franja del pie (`HINT_BAR_HEIGHT` en `src/ui/layout.ts`) se reserva al calcular el layout del nivel, así el tablero se centra encima y nunca se superpone al botón.
 7. Verificado en 360 px y en PC. `npm test` y `npm run build` pasan. No se hace git commit ni push.
 
+### [x] Tarea 16 — Memoria por servicio y Práctica que prioriza los débiles (§10, versión simplificada)
+
+**Lee:** §10 (repetición espaciada) y §11.4 del diseño (determinismo), y `AGENTS.md` §5 y §6. Versión simplificada de §10: por servicio solo aciertos, fallos y última partida, sin cajas de Leitner ni "due": nada salvo el guardado de `localStorage` cambia cuando la app no está abierta.
+
+1. `src/core/memory.ts` (nuevo): `ServiceStat { correct, failures, lastGame }`, `emptyServiceStat()`, `recordAnswer(stat, correct, gameNumber)` (valida `gameNumber` entero ≥ 0, no muta el input), `weakServicesCount(memory)` (servicios con más fallos que aciertos) y `parseServiceStat(raw)` para normalizar entradas del guardado. Pruebas en `tests/memory.test.ts`.
+2. Guardado ampliado (`src/core/progress.ts`): `SaveData` gana `levelCounter` (número de partidas **iniciadas**, §10.3, contando todos los modos) y `memory: Record<string, ServiceStat>`. `emptySave`, `mergeLevelRun`, `parseSave` y `persistSave` (sin cambios en persistence.ts) respetan los campos nuevos; `parseSave` sobre un guardado viejo rellena `levelCounter: 0` y `memory: {}`. `beginGame(save)` devuelve `{ gameNumber, save }` incrementando el contador, y `recordServiceAnswer(save, serviceId, correct, gameNumber)` actualiza la memoria. "Fecha" = número de partida (astronómico, reproducible), nunca un reloj. Se mantiene la clave y versión `aws-mahjong:v1`.
+3. `LevelScene.init` llama a `beginGame(loadSave())`, persiste el contador incrementado y guarda `gameNumber` (también vale para "Reintentar" y para Práctica libre). `askQuestion`: tras cada respuesta (`this.rt.answer`) persiste `recordServiceAnswer(loadSave(), answer.serviceId, answer.correct, this.gameNumber)` — **siempre** se pregunta (`questionPolicy = 'always'`), en niveles y en Práctica libre.
+4. `src/core/practice.ts`: `selectPractice(seed, completedLevelIds, memory, gameNumber)` ahora elige con **muestreo ponderado sin reemplazo** (reusa `weightedSampleWithoutReplacement`, exportado desde `questions.ts`; `rng.int` + pesos enteros ⇒ determinista). Peso entero `practiceWeight`: `PRACTICE_BASE_WEIGHT 10` + `6` por fallo + `2` por partida sin verse, con topes (`PRACTICE_FAILURE_CAP 8`, `PRACTICE_STALE_CAP 8`); servicio sin estadística = como muy antiguo. `buildPracticeData` le pasa la memoria y `gameNumber = save.levelCounter + 1`.
+5. Menú (`src/ui/game-ui.ts` + `.menu__review` en `ui.css`): debajo de "Práctica libre", línea "Para repasar: N servicios" solo si al menos un servicio tiene más fallos que aciertos (fuente 14 lógicos ≈ 13 px reales en 360 px).
+6. Pruebas ampliadas: `tests/practice.test.ts` (firma nueva con `memory` y `gameNumber`; `practiceWeight` con base, tope y sin estadística; con la misma semilla y las mismas estadísticas sale lo mismo; un servicio muy fallado aparece más veces que uno sin fallos en 400 semillas) y `tests/progress.test.ts` (contador, memoria, compatibilidad del guardado viejo y conservación en `mergeLevelRun`).
+7. Verificado en 360 px (línea visible bajo el botón) y en PC. `npm test` (254) y `npm run build` pasan. No se hace git commit ni push.
+
 ## Fase 3 — Pulido y retos (no empezar todavía)
 
 K candidatos y dificultad medida (§7.3), señuelos (§7.5), ajuste dinámico (§7.7), reto diario (§11.4), íconos oficiales (si los términos de AWS lo permiten), sonidos.

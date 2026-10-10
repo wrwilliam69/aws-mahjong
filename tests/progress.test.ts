@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { loadSave, persistSave } from '../src/core/persistence';
 import {
+  beginGame,
   bestStarsOf,
   emptySave,
   isUnlocked,
   mergeLevelRun,
   parseSave,
+  recordServiceAnswer,
   SAVE_KEY,
   type SaveData,
 } from '../src/core/progress';
@@ -84,5 +86,68 @@ describe('persistencia (Tarea 13)', () => {
 
   it('la clave de guardado es la pedida', () => {
     expect(SAVE_KEY).toBe('aws-mahjong:v1');
+  });
+});
+
+describe('memoria por servicio y contador de partidas (Tarea 16)', () => {
+  it('el guardado vacío tiene contador 0 y memoria vacía', () => {
+    expect(emptySave().levelCounter).toBe(0);
+    expect(emptySave().memory).toEqual({});
+  });
+
+  it('beginGame incrementa el contador a un tiempo que el usuario lee como "partida 1"', () => {
+    const begun = beginGame(emptySave());
+    expect(begun.gameNumber).toBe(1);
+    expect(begun.save.levelCounter).toBe(1);
+    expect(isUnlocked(begun.save, 1)).toBe(true); // el contador no toca el progreso
+  });
+
+  it('recordServiceAnswer guarda acierto/fallo y la partida; no toca los niveles', () => {
+    let save = beginGame(emptySave()).save;
+    save = recordServiceAnswer(save, 'ec2', true, 1);
+    expect(save.memory.ec2).toEqual({ correct: 1, failures: 0, lastGame: 1 });
+    save = recordServiceAnswer(save, 'ec2', false, 1);
+    expect(save.memory.ec2).toEqual({ correct: 1, failures: 1, lastGame: 1 });
+    expect(save.levels).toEqual({});
+    expect(save.levelCounter).toBe(1);
+  });
+
+  it('recordServiceAnswer no muta el guardado original', () => {
+    const save: SaveData = emptySave();
+    void recordServiceAnswer(save, 'ec2', true, 1);
+    expect(save.memory).toEqual({});
+  });
+
+  it('parseSave sobre un guardado viejo (sin contador ni memoria) rellena con ceros', () => {
+    const save = parseSave({ version: 1, levels: {} });
+    expect(save.levelCounter).toBe(0);
+    expect(save.memory).toEqual({});
+  });
+
+  it('parseSave descarta la memoria inválida y deja la válida', () => {
+    const raw = {
+      version: 1,
+      levels: {},
+      levelCounter: 7,
+      memory: {
+        ec2: { correct: 2, failures: 1, lastGame: 6 },
+        s3: { correct: 1, failures: -3 }, // fallos negativos: se descarta
+        dynamodb: 'basura', // se descarta
+      },
+    };
+    const save = parseSave(raw);
+    expect(save.levelCounter).toBe(7);
+    expect(save.memory.ec2).toEqual({ correct: 2, failures: 1, lastGame: 6 });
+    expect(save.memory.s3).toBeUndefined();
+    expect(save.memory.dynamodb).toBeUndefined();
+  });
+
+  it('mergeLevelRun conserva contador y memoria', () => {
+    let save = beginGame(emptySave()).save;
+    save = recordServiceAnswer(save, 'ec2', false, 1);
+    save = mergeLevelRun(save, LEVELS[0].id, { stars: 1, points: 100, timeMs: 50_000 });
+    expect(save.levelCounter).toBe(1);
+    expect(save.memory.ec2.failures).toBe(1);
+    expect(save.levels[LEVELS[0].id]).toEqual({ stars: 1, points: 100, timeMs: 50_000 });
   });
 });

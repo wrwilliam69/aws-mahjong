@@ -44,8 +44,11 @@ function uniqueById(services: readonly Service[]): Service[] {
   return out;
 }
 
-/** Muestreo ponderado sin reemplazo, con pesos enteros y `rng.int` (determinista). */
-function weightedSampleWithoutReplacement<T>(
+/**
+ * Muestreo ponderado sin reemplazo, con pesos enteros y `rng.int` (determinista).
+ * Lo reutiliza la Práctica libre (Tarea 16) para priorizar servicios débiles.
+ */
+export function weightedSampleWithoutReplacement<T>(
   items: readonly T[],
   weights: readonly number[],
   count: number,

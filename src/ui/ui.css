@@ -595,6 +595,15 @@ body {
   border-color: #1864ab;
 }
 
+/* Línea "Para repasar: N servicios" (Tarea 16): debajo del botón de Práctica
+   libre. Legible en 360 px: 14 lógicos ≈ 13 px reales como mínimo. */
+.menu__review {
+  margin: calc(100cqw * -6 / 390) 0 calc(100cqw * 14 / 390);
+  font-size: calc(100cqw * 14 / 390);
+  color: #b9c4d1;
+  text-align: center;
+}
+
 .menu__list {
   display: flex;
   flex-direction: column;
