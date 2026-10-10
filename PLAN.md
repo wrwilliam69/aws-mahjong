@@ -325,15 +325,31 @@ Problema: el tablero se lee como una sola capa plana: es difícil distinguir los
 
 ---
 
-### [ ] Tarea 13 — Menú, 6 niveles y guardado
+### [x] Tarea 13 — Menú, 6 niveles y guardado
 
-**Haz:**
-- Pantalla de inicio en HTML con el botón "Jugar" y la lista de 6 niveles (1–2 tier 1, 3–4 tier 2, 5–6 tier 3), cada uno con sus mejores estrellas.
-- Cada nivel usa una plantilla de la Tarea 3 y servicios del catálogo, con semilla fija por nivel.
-- Desbloqueo: un nivel se abre al completar el anterior.
-- Guarda en `localStorage` las mejores estrellas, puntos y tiempo de cada nivel, con `try/catch`.
+1. Niveles (datos en src/data/levels.ts, sin lógica de Phaser):
+   - Nivel 1 "Cómputo": plantilla t1-rect-4x3, servicios con introOrder 1–6.
+   - Nivel 2 "Contenedores y almacenamiento": t1-rect-3x4, introOrder 7–12.
+   - Nivel 3 "Datos": t2-sup-12, introOrder 13–18.
+   - Nivel 4 "Redes": t2-cuna-12, introOrder 19–24.
+   - Nivel 5 "Seguridad": t3-medias-16, introOrder 25–32.
+   - Nivel 6 "Gestión y costos": t3-escalera-16, introOrder 33–40.
+   Selecciona los servicios por introOrder desde el catálogo (no escribas los ids a mano). Semilla fija por nivel ('nivel-1' … 'nivel-6'). Prueba en tests/: cada nivel tiene exactamente n/2 servicios para su plantilla, sin repetidos, y todos generan tablero con generateBoard.
 
-**Lista cuando:** se pueden jugar los 6 niveles seguidos y el progreso se mantiene al recargar la página.
+2. Quita el tablero de prueba de la Tarea 11 (plantilla T3 + 8 servicios fijos). El juego arranca en el menú.
+
+3. Menú (HTML dentro de #game-frame, mismo estilo y escalado de la 12.1):
+   - Título "AWS Mahjong" y la lista de los 6 niveles: número, tema, mejores estrellas (☆ si nunca se jugó) y candado si está bloqueado.
+   - El nivel 1 siempre está abierto. Un nivel se abre al completar el anterior (con cualquier cantidad de estrellas).
+   - Tocar un nivel bloqueado no hace nada salvo un temblor corto.
+
+4. Durante el nivel: en la barra de arriba, botón "Menú". Al tocarlo aparece una confirmación HTML dentro del marco ("¿Salir del nivel? Perderás el progreso de esta partida" con "Salir" y "Seguir jugando"). Nada de alert/confirm del navegador.
+
+5. Resultados: agrega "Siguiente" (si hay siguiente nivel y ya está desbloqueado) y "Menú", además de "Reintentar".
+
+6. Guardado: en localStorage con la clave "aws-mahjong:v1", todo con try/catch. Por nivel guarda las mejores estrellas, mejores puntos y mejor tiempo (cada récord por separado). Si localStorage falla o está vacío, el juego funciona igual (solo nivel 1 abierto). La lógica de leer/combinar récords y calcular desbloqueos va en funciones puras con pruebas.
+
+7. Verifica en 360 px y en PC: se pueden jugar los 6 niveles seguidos y el progreso se mantiene al recargar la página. Corre npm test y npm run build. Responde con el resumen y DETENTE. No hagas git commit ni push.
 
 ---
 

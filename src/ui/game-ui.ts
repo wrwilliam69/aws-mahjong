@@ -1,16 +1,19 @@
-// Capa HTML sobre el canvas (Tareas 12 y 12.1 del PLAN.md): pregunta, tarjeta de
-// repaso y resultados. No decide reglas: los datos llegan desde src/core
-// (buildReviewData, buildResults y scoring). El reloj ya lo pausa LevelRuntime.
-// Todo se dibuja dentro de #game-frame (nunca fijo a la ventana) y escala con
-// unidades cqw del marco.
+// Capa HTML sobre el canvas (Tareas 12, 12.1 y 13 del PLAN.md): menú, pregunta,
+// tarjeta de repaso, confirmación de salida y resultados. No decide reglas: los
+// datos llegan desde src/core (buildReviewData, buildResults, scoring, progress).
+// El reloj ya lo pausa LevelRuntime. Todo se dibuja dentro de #game-frame (nunca
+// fijo a la ventana) y escala con unidades cqw del marco.
 import './ui.css';
 import { CARD_HEIGHT_RATIO } from './layout';
 
 // Reexportada para que la escena (LevelScene.ts) use la misma constante.
 export { CARD_HEIGHT_RATIO };
 import { catalog, type Category } from '../core/content';
+import { loadSave } from '../core/persistence';
+import { bestStarsOf, isUnlocked } from '../core/progress';
 import { FALLBACK_CATEGORY_COLOR, type ReviewData, type ReviewIconSpec } from '../core/review';
 import { missedCriterionText, type ResultsData } from '../core/results';
+import { LEVELS, type LevelDef } from '../data/levels';
 import iconMap from '../data/icon-map.json';
 
 const BASE_URL = import.meta.env.BASE_URL;
@@ -37,6 +40,152 @@ function container(): HTMLElement {
     }
   }
   return root;
+}
+
+// --- Superposiciones (Tarea 13) ---------------------------------------------
+// Menú, confirmación de salida y resultados viven dentro de #game-frame.
+// `clearOverlays` los quita todos junto con el botón "Menú" de la barra superior.
+
+/** Crea una superposición a pantalla completa dentro del marco y la adjunta. */
+function overlay(classNames: string): HTMLElement {
+  const el = document.createElement('div');
+  el.className = `overlay ${classNames}`;
+  container().appendChild(el);
+  return el;
+}
+
+let levelMenuBtn: HTMLButtonElement | null = null;
+
+function removeLevelMenuButton(): void {
+  levelMenuBtn?.remove();
+  levelMenuBtn = null;
+}
+
+/** Quita todas las superposiciones y el botón "Menú" del nivel. */
+export function clearOverlays(): void {
+  container().querySelectorAll('.overlay').forEach((el) => el.remove());
+  removeLevelMenuButton();
+}
+
+function shake(el: HTMLElement): void {
+  el.classList.remove('menu__row--shake');
+  // Fuerza el reinicio de la animación CSS aunque se toque dos veces seguidas.
+  void el.offsetWidth;
+  el.classList.add('menu__row--shake');
+}
+
+/** Cadena de estrellas del menú: ★ llenas, ☆ vacías; null (nunca jugado) = ☆. */
+function starsText(stars: number | null): string {
+  if (stars === null) return '☆';
+  return '★'.repeat(stars) + '☆'.repeat(3 - stars);
+}
+
+/**
+ * Menú principal (Tarea 13): título "AWS Mahjong" y la lista de los 6 niveles
+ * con su número, tema, mejores estrellas y candado si está bloqueado. Tocar un
+ * nivel bloqueado no hace nada más que un temblor corto.
+ */
+export function showMenu(callbacks: { onPlay: (level: LevelDef) => void }): void {
+  clearOverlays();
+  const save = loadSave();
+  const menu = overlay('menu');
+
+  const title = document.createElement('h1');
+  title.className = 'menu__title';
+  title.textContent = 'AWS Mahjong';
+  menu.appendChild(title);
+
+  const list = document.createElement('div');
+  list.className = 'menu__list';
+
+  for (const level of LEVELS) {
+    const unlocked = isUnlocked(save, level.number);
+    const stars = bestStarsOf(save, level.id);
+
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = unlocked ? 'menu__row menu__row--open' : 'menu__row menu__row--locked';
+    row.addEventListener('click', () => {
+      if (unlocked) {
+        menu.remove();
+        callbacks.onPlay(level);
+      } else {
+        shake(row);
+      }
+    });
+
+    const num = document.createElement('span');
+    num.className = 'menu__num';
+    num.textContent = String(level.number);
+    row.appendChild(num);
+
+    const theme = document.createElement('span');
+    theme.className = 'menu__theme';
+    theme.textContent = level.title;
+    row.appendChild(theme);
+
+    const right = document.createElement('span');
+    right.className = 'menu__stars';
+    if (unlocked) {
+      right.textContent = starsText(stars);
+      if (stars === null) right.classList.add('dim');
+    } else {
+      right.textContent = '🔒';
+      right.classList.add('menu__lock');
+    }
+    row.appendChild(right);
+
+    list.appendChild(row);
+  }
+
+  menu.appendChild(list);
+}
+
+/** Botón "Menú" en la barra superior, mientras el nivel está en curso. */
+export function showLevelMenuButton(onExit: () => void): void {
+  removeLevelMenuButton();
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'level-menu-btn';
+  btn.textContent = 'Menú';
+  btn.addEventListener('click', () => showExitConfirm(onExit));
+  container().appendChild(btn);
+  levelMenuBtn = btn;
+}
+
+/** Confirmación de salida en HTML dentro del marco (nada de alert/confirm del navegador). */
+export function showExitConfirm(onExit: () => void): void {
+  const ov = overlay('confirm');
+  const dialog = document.createElement('div');
+  dialog.className = 'confirm__dialog';
+
+  const text = document.createElement('p');
+  text.className = 'confirm__text';
+  text.textContent = '¿Salir del nivel? Perderás el progreso de esta partida';
+  dialog.appendChild(text);
+
+  const buttons = document.createElement('div');
+  buttons.className = 'confirm__buttons';
+
+  const salir = document.createElement('button');
+  salir.type = 'button';
+  salir.className = 'confirm__btn confirm__btn--danger';
+  salir.textContent = 'Salir';
+  salir.addEventListener('click', () => {
+    ov.remove();
+    onExit();
+  });
+  buttons.appendChild(salir);
+
+  const seguir = document.createElement('button');
+  seguir.type = 'button';
+  seguir.className = 'confirm__btn confirm__btn--primary';
+  seguir.textContent = 'Seguir jugando';
+  seguir.addEventListener('click', () => ov.remove());
+  buttons.appendChild(seguir);
+
+  dialog.appendChild(buttons);
+  ov.appendChild(dialog);
 }
 
 /** ¿El servicio tiene SVG oficial copiado en public/icons (icon-map.json)? */
@@ -161,11 +310,11 @@ export interface QuestionUiData {
  */
 export function ask(data: QuestionUiData): Promise<number> {
   return new Promise<number>((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'question';
+    const ov = document.createElement('div');
+    ov.className = 'overlay question';
     const dialog = document.createElement('div');
     dialog.className = 'question__dialog';
-    overlay.appendChild(dialog);
+    ov.appendChild(dialog);
 
     const head = document.createElement('div');
     head.className = 'question__head';
@@ -184,7 +333,7 @@ export function ask(data: QuestionUiData): Promise<number> {
     const finish = (index: number): void => {
       if (settled) return;
       settled = true;
-      overlay.remove();
+      ov.remove();
       resolve(index);
     };
 
@@ -233,7 +382,7 @@ export function ask(data: QuestionUiData): Promise<number> {
       }
     }
 
-    container().appendChild(overlay);
+    container().appendChild(ov);
   });
 }
 
@@ -283,14 +432,24 @@ function failedServiceItem(serviceId: string): HTMLElement | null {
   return item;
 }
 
-/** Pantalla de resultados: estrellas, puntos, tiempo, criterio y "Reintentar". */
-export function showResults(data: ResultsData, onRetry: () => void): void {
-  const ui = container();
-  const overlay = document.createElement('div');
-  overlay.className = 'results';
+export interface ResultsCallbacks {
+  onRetry: () => void;
+  /** Solo se muestra si hay un nivel siguiente (ya desbloqueado al completar este). */
+  onNext?: () => void;
+  onMenu: () => void;
+}
+
+/**
+ * Pantalla de resultados: estrellas, puntos, tiempo, criterio que faltó,
+ * servicios fallados y los botones "Siguiente" (si hay nivel siguiente),
+ * "Menú" y "Reintentar" (Tarea 13).
+ */
+export function showResults(data: ResultsData, callbacks: ResultsCallbacks): void {
+  const uiRoot = container();
+  const ov = overlay('results');
   const dialog = document.createElement('div');
   dialog.className = 'results__dialog';
-  overlay.appendChild(dialog);
+  ov.appendChild(dialog);
 
   const starsEl = document.createElement('div');
   starsEl.className = 'results__stars';
@@ -340,16 +499,39 @@ export function showResults(data: ResultsData, onRetry: () => void): void {
 
   const footer = document.createElement('div');
   footer.className = 'results__footer';
+
+  if (callbacks.onNext !== undefined) {
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'results__next';
+    next.textContent = 'Siguiente';
+    next.addEventListener('click', () => {
+      ov.remove();
+      callbacks.onNext?.();
+    });
+    footer.appendChild(next);
+  }
+
   const retry = document.createElement('button');
   retry.type = 'button';
   retry.className = 'results__retry';
   retry.textContent = 'Reintentar';
   retry.addEventListener('click', () => {
-    overlay.remove();
-    onRetry();
+    ov.remove();
+    callbacks.onRetry();
   });
   footer.appendChild(retry);
-  dialog.appendChild(footer);
 
-  ui.appendChild(overlay);
+  const menu = document.createElement('button');
+  menu.type = 'button';
+  menu.className = 'results__menu';
+  menu.textContent = 'Menú';
+  menu.addEventListener('click', () => {
+    ov.remove();
+    callbacks.onMenu();
+  });
+  footer.appendChild(menu);
+
+  dialog.appendChild(footer);
+  uiRoot.appendChild(ov);
 }

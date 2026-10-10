@@ -349,10 +349,14 @@ body {
 
 .results__footer {
   display: flex;
+  flex-direction: column;
   flex: none;
+  gap: calc(100cqw * 8 / 390);
 }
 
-.results__retry {
+.results__retry,
+.results__next,
+.results__menu {
   width: 100%;
   min-height: calc(100cqw * 48 / 390);
   font-size: calc(100cqw * 16 / 390);
@@ -365,6 +369,230 @@ body {
   font-family: inherit;
 }
 
+.results__next {
+  border-color: #1c7ed6;
+  background: #1c7ed6;
+}
+
+.results__next:active {
+  background: #1864ab;
+}
+
 .results__retry:active {
   background: #267a37;
+}
+
+.results__menu {
+  border-color: #2f3b4b;
+  background: #16202e;
+}
+
+.results__menu:active {
+  background: #1e2c3d;
+}
+
+/* ------------------------------------------------------------------ */
+/* Menú, botón "Menú" del nivel y confirmación de salida (Tarea 13).   */
+/* Todo dentro del marco, con escalado en unidades cqw como el resto. */
+/* ------------------------------------------------------------------ */
+/* Clase marcadora: identifica las superposiciones que `clearOverlays` quita.
+   No define posición ni tamaño: eso lo aporta cada clase concreta. */
+.overlay {
+  pointer-events: auto;
+}
+
+.menu {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: calc(100cqw * 24 / 390) calc(100cqw * 16 / 390);
+  background: #1a1a2e;
+  color: #ffffff;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.menu__title {
+  margin: calc(100cqw * 10 / 390) 0 calc(100cqw * 20 / 390);
+  font-size: calc(100cqw * 30 / 390);
+  text-align: center;
+}
+
+.menu__list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(100cqw * 10 / 390);
+}
+
+.menu__row {
+  display: flex;
+  align-items: center;
+  gap: calc(100cqw * 10 / 390);
+  width: 100%;
+  min-height: calc(100cqw * 60 / 390);
+  box-sizing: border-box;
+  padding: calc(100cqw * 10 / 390) calc(100cqw * 12 / 390);
+  border-radius: calc(100cqw * 12 / 390);
+  border: 2px solid #2f3b4b;
+  background: #16202e;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: calc(100cqw * 16 / 390);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu__row--locked {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.menu__row--open:active {
+  background: #1e2c3d;
+}
+
+.menu__num {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(100cqw * 34 / 390);
+  height: calc(100cqw * 34 / 390);
+  border-radius: 50%;
+  background: #0d1b2a;
+  border: 2px solid #2f3b4b;
+  font-weight: bold;
+  font-size: calc(100cqw * 16 / 390);
+}
+
+.menu__theme {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.menu__stars {
+  flex: none;
+  font-size: calc(100cqw * 16 / 390);
+  letter-spacing: 2px;
+  color: #ffd43b;
+}
+
+.menu__stars.dim {
+  color: #3a4a5c;
+}
+
+.menu__lock {
+  color: #b9c4d1;
+  letter-spacing: 0;
+}
+
+@keyframes menu-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+.menu__row--shake {
+  animation: menu-shake 0.25s ease-in-out;
+}
+
+/* Botón "Menú" en la barra superior del nivel, centrado entre puntos y tiempo. */
+.level-menu-btn {
+  position: absolute;
+  top: calc(100cqw * 12 / 390);
+  left: 50%;
+  transform: translateX(-50%);
+  min-height: calc(100cqw * 36 / 390);
+  padding: 0 calc(100cqw * 12 / 390);
+  border-radius: calc(100cqw * 8 / 390);
+  border: 2px solid #2f3b4b;
+  background: #16202e;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: calc(100cqw * 16 / 390);
+  font-weight: bold;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.level-menu-btn:active {
+  background: #1e2c3d;
+}
+
+/* Confirmación "¿Salir del nivel?" centrada dentro del marco. */
+.confirm {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(100cqw * 16 / 390);
+  background: rgba(0, 0, 0, 0.6);
+  box-sizing: border-box;
+}
+
+.confirm__dialog {
+  width: 100%;
+  max-width: calc(100cqw * 340 / 390);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: calc(100cqw * 14 / 390);
+  background: #0d1b2a;
+  border: 1px solid #2f3b4b;
+  border-radius: calc(100cqw * 14 / 390);
+  padding: calc(100cqw * 16 / 390);
+}
+
+.confirm__text {
+  margin: 0;
+  font-size: calc(100cqw * 16 / 390);
+  color: #ffffff;
+}
+
+.confirm__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: calc(100cqw * 10 / 390);
+}
+
+.confirm__btn {
+  width: 100%;
+  min-height: calc(100cqw * 48 / 390);
+  font-size: calc(100cqw * 16 / 390);
+  font-weight: bold;
+  border-radius: calc(100cqw * 10 / 390);
+  border: 2px solid #2f3b4b;
+  background: #16202e;
+  color: #ffffff;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.confirm__btn--primary {
+  background: #2f9e44;
+  border-color: #2f9e44;
+}
+
+.confirm__btn--primary:active {
+  background: #267a37;
+}
+
+.confirm__btn--danger {
+  background: #c92a2a;
+  border-color: #c92a2a;
+}
+
+.confirm__btn--danger:active {
+  background: #a61e1e;
 }

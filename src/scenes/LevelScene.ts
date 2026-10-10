@@ -12,13 +12,17 @@ import { isFree } from '../core/geometry';
 import type { BoardSetup } from '../core/generator';
 import { LevelRuntime } from '../core/level-runtime';
 import type { TierConfig } from '../core/peel';
+import { loadSave, persistSave } from '../core/persistence';
+import { mergeLevelRun, type LevelRun } from '../core/progress';
 import type { Question } from '../core/questions';
 import { buildReviewData } from '../core/review';
 import { buildResults, errorLimitFor3Stars, failedServiceIds } from '../core/results';
 import { pairPoints } from '../core/scoring';
 import { isPairFree } from '../core/solve';
 import iconMap from '../data/icon-map.json';
+import { generateLevelSetup, LEVELS, tierConfigForLevel, type LevelDef } from '../data/levels';
 import * as ui from '../ui/game-ui';
+import { onQuestion } from '../ui/question';
 
 // Lienzo lógico 390 × 844 con Scale.FIT (§6). En una pantalla real de 360 px el
 // factor es 360/390 ≈ 0,923, así que 15 px lógicos ≈ 13,8 px reales: por encima
@@ -64,6 +68,8 @@ export interface BoardLayout {
 }
 
 export interface LevelSceneData {
+  /** Nivel de la campaña que se está jugando (Tarea 13). */
+  level: LevelDef;
   setup: BoardSetup;
   cfg: TierConfig;
   /**
@@ -71,6 +77,16 @@ export interface LevelSceneData {
    * Abre la ventana HTML de `src/ui/question.ts` (Tarea 12).
    */
   onQuestion: (question: Question) => Promise<number>;
+}
+
+/** Datos de una partida del nivel: tablero con su semilla fija + pregunta HTML. */
+export function buildLevelData(level: LevelDef): LevelSceneData {
+  return {
+    level,
+    setup: generateLevelSetup(level),
+    cfg: tierConfigForLevel(level),
+    onQuestion,
+  };
 }
 
 interface TileView {
@@ -193,6 +209,7 @@ export class LevelScene extends Phaser.Scene {
     this.buildHud();
     this.buildTiles();
     ui.showTutorial();
+    ui.showLevelMenuButton(() => this.goToMenu());
     this.input.on('pointerdown', this.onPointerDown, this);
   }
 
@@ -702,8 +719,33 @@ export class LevelScene extends Phaser.Scene {
       newServices: 0,
       E3: errorLimitFor3Stars(this.setup.tier),
     });
-    ui.showResults(results, () => {
-      this.scene.restart(this.levelData);
+
+    // Guarda los récords del nivel (mejores estrellas, puntos y tiempo por
+    // separado) antes de mostrar resultados: así "Siguiente" ya está abierto.
+    const run: LevelRun = {
+      stars: results.stars,
+      points: this.score,
+      timeMs: this.rt.boardTimeMs,
+    };
+    persistSave(mergeLevelRun(loadSave(), this.levelData.level.id, run));
+
+    const nextLevel = LEVELS.find((l) => l.number === this.levelData.level.number + 1);
+    ui.showResults(results, {
+      onRetry: () => this.scene.restart(this.levelData),
+      onNext: nextLevel === undefined ? undefined : () => this.startLevel(nextLevel),
+      onMenu: () => this.goToMenu(),
     });
+  }
+
+  /** Vuelve al menú (TitleScene crea el menú y limpia las superposiciones). */
+  private goToMenu(): void {
+    ui.clearOverlays();
+    this.scene.start('TitleScene');
+  }
+
+  /** Entra a otro nivel con su tablero de semilla fija ("Siguiente"). */
+  private startLevel(level: LevelDef): void {
+    ui.clearOverlays();
+    this.scene.start('LevelScene', buildLevelData(level));
   }
 }
