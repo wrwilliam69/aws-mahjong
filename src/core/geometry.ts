@@ -89,6 +89,45 @@ export function freeList(g: Geometry, present: number): number[] {
   return out;
 }
 
+/** Expande una máscara de bits en índices ascendentes. */
+function indicesOf(mask: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; mask !== 0; i++) {
+    if ((mask & 1) !== 0) out.push(i);
+    mask >>>= 1;
+  }
+  return out;
+}
+
+/**
+ * Motivo por el que una ficha está bloqueada (regla R3 de §3.3): algo encima o,
+ * si no, fichas a la izquierda y la derecha a la vez. `null` si está libre o ausente.
+ */
+export function blockReason(
+  g: Geometry,
+  present: number,
+  i: number,
+): 'above' | 'sides' | null {
+  if ((present & bit(i)) === 0) return null;
+  if ((present & g.above[i]) !== 0) return 'above';
+  const left = present & g.left[i];
+  const right = present & g.right[i];
+  if (left !== 0 && right !== 0) return 'sides';
+  return null;
+}
+
+/**
+ * Fichas que bloquean a `i` (Tarea 13.4): las de encima si hay alguna; si no,
+ * las de la izquierda y la derecha que la encierran. Lista vacía si la ficha
+ * está libre, ausente o no está bloqueada. Reutiliza la regla de `isFree`.
+ */
+export function blockers(g: Geometry, present: number, i: number): number[] {
+  const reason = blockReason(g, present, i);
+  if (reason === 'above') return indicesOf(present & g.above[i]);
+  if (reason === 'sides') return indicesOf((present & g.left[i]) | (present & g.right[i]));
+  return [];
+}
+
 /**
  * Espejo de un conjunto de slots (§4.4): bit 0 = horizontal (x' = maxX − x),
  * bit 1 = vertical (y' = maxY − y). El orden de los slots se conserva, así los

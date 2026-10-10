@@ -12,7 +12,7 @@
 
 ## Fase 1 — Versión jugable
 
-**Meta:** un juego que se pueda jugar en el celular: tableros con solución garantizada, parejas ícono-nombre, pregunta "¿para qué sirve?", puntos y estrellas, 6 niveles y publicado en GitHub Pages.
+**Meta:** un juego que se pueda jugar en el celular: tableros con solución garantizada, parejas ícono-nombre, pregunta "¿para qué sirve?", puntos y estrellas, 6 niveles y publicado en AWS Amplify.
 
 **Fuera de la Fase 1** (no implementar todavía): combos, pista, repetición espaciada, mapa de mundos, ajuste dinámico (DDA), señuelos, K candidatos, reto diario, deshacer, fichas dobles.
 
@@ -403,15 +403,51 @@ Feedback del usuario: cada nivel sale idéntico siempre; en estos juegos nunca s
 
 ---
 
-### [ ] Tarea 14 — Publicación en GitHub Pages
+### [x] Tarea 13.4 — Mostrar qué bloquea una ficha y botón Menú en Práctica libre
+
+Feedback del usuario: (a) en tableros planos no entendía por qué una ficha estaba bloqueada, porque no tiene nada encima: la bloquean los lados; (b) en Práctica libre no hay forma de volver al menú.
+
+1. `src/core/geometry.ts`: funciones puras `blockReason(g, present, i)` → `'above' | 'sides' | null` y `blockers(g, present, i)` → índices de las fichas que la bloquean: las de encima si hay alguna (regla R3 de §3.3) o, si no, las de la izquierda y la derecha que la encierran; lista vacía si la ficha está libre, ausente o retirada. Reutilizan `above`/`left`/`right` y la regla de `isFree`; no se duplica ninguna regla. Pruebas en `tests/blockers.test.ts`: bloqueada por encima, bloqueada por los dos lados, ficha libre → lista vacía, un solo lado ocupado no bloquea y "encima" gana a "lados".
+2. Al tocar una ficha bloqueada (`LevelScene.handleTap`), además del temblor, se resaltan con borde rojo (~600 ms) las fichas que la bloquean (`highlightBlockers`), y la tarjeta muestra el mensaje según el caso (`ui.showBlockedTileHint(reason)`):
+   - Bloqueada por encima: "Esta ficha está bloqueada: tiene otra encima."
+   - Bloqueada por los lados: "Esta ficha está bloqueada: tiene fichas a los dos lados."
+3. Práctica libre: el botón "Menú" de la barra superior abre la misma confirmación dentro del marco, con el texto "¿Salir de la partida?" (`ui.showLevelMenuButton(onExit, confirmText)` y `ui.showExitConfirm(onExit, confirmText)`, con el texto de la campaña como valor por defecto).
+4. Verificado en 360 px y en PC, en un tablero plano (nivel 1) y en uno con pisos (nivel 3). `npm test` y `npm run build` pasan. No se hace git commit ni push.
+
+---
+
+### [x] Tarea 13.6 — Tarjeta informativa arriba y tablero abajo
+
+**Lee:** `AGENTS.md` §6.
+
+Feedback del usuario: la tarjeta de repaso abajo no se ve; la mirada siempre está arriba (barra de puntos/tiempo), así que se pierde el propósito de aprendizaje de la tarjeta.
+
+1. **Nuevo orden vertical dentro de `#game-frame`:** barra superior → tarjeta informativa → tablero. **Altura de la tarjeta (revisión):** se mide **una vez al empezar cada nivel** con el contenido compacto más alto de ese tablero (`ui.fitCardToLevel`: la tarjeta de cada servicio con ✅ y ❌, el tutorial y los avisos de bloqueo), con `CARD_HEIGHT_RATIO` (0,28) como **máximo**. La misma fracción va a la variable CSS `--card-height-ratio` y a la escena, y **no cambia durante la partida**: el tablero se **centra en vertical en el espacio libre debajo de la tarjeta** (con al menos `BOARD_TOP_GAP` de separación; decisión del usuario), su posición se calcula una sola vez al empezar el nivel y nunca se mueve ni cambia de tamaño. Como la franja es como mucho la de antes, las fichas no se encogen: el texto de las fichas de nombre sigue ≥ 13 px reales a 360 px (15 px lógicos × 342/390 ≈ 13,2 px en 360×740).
+2. **Tarjeta compacta:** siempre visibles el ícono, el nombre con ✅/❌, la línea de la sigla (si existe) y el `functionText`. La `explanation`, la categoría y los dominios quedan detrás de un botón pequeño "Ver más" / "Ver menos". **"Ver más" (revisión):** el detalle se despliega como **panel superpuesto** que crece hacia abajo sobre el tablero, con sombra, tope del 60 % del marco y scroll interno, **sin mover el tablero**. Se cierra con "Ver menos", con la siguiente actualización de la tarjeta (respuesta o aviso) o **tocando fuera de la tarjeta** (decisión del usuario): una capa transparente bajo la tarjeta desplegada (`.review-card__backdrop`) recibe ese toque, así que **solo cierra el panel y NO selecciona ninguna ficha** (el canvas no se entera). Nada desaparece solo. El último aviso de bloqueo puede seguir visible en la tarjeta mientras se responde la pregunta (decisión del usuario: se deja así).
+3. **Destello al cambiar:** cada vez que la tarjeta se actualiza (respuesta, aviso de ficha bloqueada o de pareja bloqueada) el borde hace un destello corto de ~400 ms: verde si fue correcta, rojo si fue incorrecta, amarillo para los avisos de bloqueo. Nunca mueve el tablero.
+4. El tutorial inicial y los avisos de bloqueo (Tarea 13.4) se muestran en esta misma tarjeta de arriba.
+5. Verificado en 360 px, 390 px, tablet y PC, en un tablero plano (nivel 1) y uno con pisos (nivel 3). `npm test` y `npm run build` pasan.
+
+**Archivos:** `src/ui/layout.ts` (constantes `LOGICAL_WIDTH` y `TOP_BAR_HEIGHT` compartidas; `CARD_HEIGHT_RATIO` pasa a ser el máximo), `src/ui/game-ui.ts` (tarjeta compacta con "Ver más"/"Ver menos", destello y `fitCardToLevel`), `src/ui/ui.css` (posición arriba, compacta, panel desplegado, botón y animaciones), `src/scenes/LevelScene.ts` (mide la tarjeta en `init` y centra el tablero en el espacio libre de debajo). No se toca `src/core`.
+
+**Revisión (segunda opinión, verificada en el navegador en 360×740, 390×844, 768×1024 y 1920×1080, niveles 1 y 3):**
+- **Error corregido: el juego entero subía 4 px a mitad de partida.** El canvas en línea dejaba un hueco de línea bajo él (`#game-frame` medía 744 de contenido para 740 de alto) y, al tocar una opción de la pregunta, el navegador desplazaba el marco (`scrollTop = 4`), con lo que el tablero se movía. Corregido en `ui.css` con `#game-frame canvas { display: block }` y `overflow: clip` en `#game-frame`.
+- **Hueco entre tarjeta y tablero** (feedback del usuario): con la altura fija del 28 % el contenido compacto usaba un tercio y el tablero quedaba centrado muy abajo. Opciones evaluadas: (A) altura medida por nivel con máximo y panel superpuesto para "Ver más" (**elegida**), (B) tarjeta que se encoge a una línea al tocar la siguiente ficha y se reabre con un toque, (C) panel de feedback con botón "Continuar" en cada pareja. B y C se descartaron: B o tapa fichas justo después de cada respuesta o no libera espacio sin mover el tablero, y C añade un toque por pareja (o, si se cierra solo, borra la información antes de poder leerla). Resultado: la tarjeta pasa del 28 % a ~16,6 % del alto en los niveles 1 y 3.
+- **Decisiones del usuario sobre la revisión:** (1) el tablero se centra en vertical en el espacio libre bajo la tarjeta (borde superior en y≈381 px lógicos en el nivel 1 y y≈434 en el nivel 3, frente a 426 y 471 con la tarjeta fija del 28 %); (2) "Ver más" se cierra al tocar fuera de la tarjeta, sin seleccionar ficha; (3) el último aviso durante la pregunta se deja como está. Verificado en 360×740 y 1920×1080, niveles 1 y 3: el tablero no se mueve, el toque fuera cierra el panel sin seleccionar la ficha y el toque siguiente sí la selecciona.
+
+---
+
+### [x] Tarea 14 — Publicación en AWS Amplify Hosting
+
+**Contexto:** el repo es privado y se publicará en AWS Amplify Hosting (con usuario y contraseña configurados por el usuario en la consola). Amplify sirve el sitio desde la raíz del dominio.
 
 **Haz:**
-- `.github/workflows/deploy.yml`: en cada push a `main`, instala, corre `npm test`, hace `npm run build` y publica `dist/` en GitHub Pages con las acciones oficiales de Pages.
-- `README.md` corto: qué es el juego y cómo correrlo.
+1. `vite.config`: `base` pasa de `/aws-mahjong/` a `/`. En todo el proyecto, cualquier `/aws-mahjong/` escrito a mano se reemplaza por `import.meta.env.BASE_URL` o rutas relativas (los íconos ya usan `BASE_URL`).
+2. `amplify.yml` en la raíz: instala Node 22, corre `npm ci`, `npm test` y `npm run build`, y publica `dist/`. `package-lock.json` existe (`npm ci` lo necesita); no se regenera.
+3. `AGENTS.md` §10: se quita la mención a GitHub Pages y `/aws-mahjong/`; se documenta Amplify con `base: '/'` y que `amplify.yml` no se cambia sin permiso. Nunca se escriben en el repo usuarios, contraseñas, ARNs de cuenta ni credenciales de AWS.
+4. `README.md` corto: qué es el juego, cómo correrlo (`npm install`, `npm run dev` → http://localhost:5173/) y que se publica en Amplify desde `main`.
 
-**El usuario debe:** en GitHub, ir a **Settings → Pages → Source** y elegir **GitHub Actions**.
-
-**Lista cuando:** el juego carga en `https://wrwilliam69.github.io/aws-mahjong/` y se puede jugar desde el celular.
+**Lista cuando:** `npm test` y `npm run build` pasan y `dist/` contiene `index.html` con rutas que empiezan por `/`.
 
 ---
 

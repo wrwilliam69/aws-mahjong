@@ -26,7 +26,16 @@ body {
   transform: translate(-50%, -50%);
   background: #1a1a2e;
   overflow: hidden;
+  /* `clip` además impide que el navegador desplace el marco (p. ej. al enfocar
+     un botón): con `hidden` el marco llegó a subir 4 px a mitad de partida. */
+  overflow: clip;
   container-type: size;
+}
+
+/* El canvas en línea dejaba 4 px de hueco de línea debajo (el marco medía 744
+   para 740 de alto); como bloque mide exactamente lo mismo que el marco. */
+#game-frame canvas {
+  display: block;
 }
 
 /* Capas HTML: absolutas dentro del marco, nunca fijas a la ventana. Se mantienen
@@ -44,15 +53,16 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Tarjeta de repaso: ocupa la franja inferior que reserva el tablero  */
-/* (`--card-height-ratio`, la misma constante de src/ui/layout.ts).    */
-/* Esquinas superiores redondeadas, padding interno y scroll interno.  */
+/* Tarjeta informativa (Tarea 13.6): va justo debajo de la barra       */
+/* superior y encima del tablero, que queda en la zona del pulgar.     */
+/* Ocupa la franja `--card-height-ratio` (misma constante de           */
+/* src/ui/layout.ts) y se alinea con la barra con `--top-bar-ratio`.   */
 /* ------------------------------------------------------------------ */
 .review-card {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  top: calc(var(--top-bar-ratio, 0.1436) * 100cqw);
   height: calc(var(--card-height-ratio, 0.28) * 100%);
   box-sizing: border-box;
   display: flex;
@@ -61,18 +71,57 @@ body {
   padding: calc(100cqw * 8 / 390) calc(100cqw * 14 / 390);
   background: #0d1b2a;
   color: #ffffff;
-  border-top: 2px solid #2f3b4b;
-  border-radius: calc(100cqw * 14 / 390) calc(100cqw * 14 / 390) 0 0;
+  border-bottom: 2px solid #2f3b4b;
+  border-radius: 0 0 calc(100cqw * 14 / 390) calc(100cqw * 14 / 390);
   font-size: calc(100cqw * 15 / 390);
   overflow: hidden;
   pointer-events: auto;
 }
 
+/* Medición de la altura por nivel (fitCardToLevel): misma tarjeta, invisible y
+   con alto según su contenido. */
+.review-card--measure {
+  height: auto;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* "Ver más" (revisión de la 13.6): el detalle se despliega como panel que crece
+   hacia abajo SOBRE el tablero, sin moverlo; con tope y scroll interno.
+   "Ver menos" o la siguiente actualización lo devuelven a su altura. */
+.review-card--expanded {
+  height: auto;
+  min-height: calc(var(--card-height-ratio, 0.28) * 100%);
+  max-height: 60%;
+  box-shadow: 0 calc(100cqw * 10 / 390) calc(100cqw * 24 / 390) rgba(0, 0, 0, 0.65);
+}
+
+/* Capa transparente bajo la tarjeta desplegada: un toque fuera de la tarjeta
+   solo cierra "Ver más" y no llega al tablero (decisión del usuario, 13.6). */
+.review-card__backdrop {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  pointer-events: auto;
+}
+
+/* Zona desplazable de la tarjeta: llega a hacer scroll si el detalle abierto
+   con "Ver más" no cabe. El botón queda fijo al pie, fuera de este scroll. */
 .review-card__scroll {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(100cqw * 4 / 390);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Detalle opcional tras "Ver más": explicación, categoría y dominios. */
+.review-card__extra {
+  display: flex;
+  flex-direction: column;
+  gap: calc(100cqw * 4 / 390);
 }
 
 .review-card__head {
@@ -113,21 +162,86 @@ body {
 }
 
 .review-card__main {
-  margin: 2px 0;
+  margin: 0;
   font-weight: bold;
   font-size: calc(100cqw * 15 / 390);
 }
 
 .review-card__text {
-  margin: 2px 0;
+  margin: 0;
   font-size: calc(100cqw * 15 / 390);
 }
 
 .review-card__meta {
-  margin: 2px 0;
+  margin: 0;
   font-size: calc(100cqw * 15 / 390);
   color: #b9c4d1;
   white-space: pre-line;
+}
+
+/* Botón pequeño "Ver más" / "Ver menos", alineado a la derecha al pie. */
+.review-card__more {
+  flex: none;
+  align-self: flex-end;
+  min-height: calc(100cqw * 30 / 390);
+  padding: 0 calc(100cqw * 10 / 390);
+  border-radius: calc(100cqw * 8 / 390);
+  border: 1px solid #2f3b4b;
+  background: #16202e;
+  color: #9fb0c3;
+  font-family: inherit;
+  font-size: calc(100cqw * 13 / 390);
+  font-weight: bold;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.review-card__more:active {
+  background: #1e2c3d;
+}
+
+/* Destello del borde al actualizarse la tarjeta (Tarea 13.6, ~400 ms):
+   verde acierto, rojo fallo, amarillo aviso de bloqueo. Solo borde. */
+@keyframes review-card-flash-correct {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 3px rgba(47, 158, 68, 0);
+  }
+  25% {
+    box-shadow: inset 0 0 0 3px rgba(47, 158, 68, 1);
+  }
+}
+
+@keyframes review-card-flash-wrong {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 3px rgba(201, 42, 42, 0);
+  }
+  25% {
+    box-shadow: inset 0 0 0 3px rgba(201, 42, 42, 1);
+  }
+}
+
+@keyframes review-card-flash-notice {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 3px rgba(255, 212, 59, 0);
+  }
+  25% {
+    box-shadow: inset 0 0 0 3px rgba(255, 212, 59, 1);
+  }
+}
+
+.review-card--flash-correct {
+  animation: review-card-flash-correct 0.4s ease-out;
+}
+
+.review-card--flash-wrong {
+  animation: review-card-flash-wrong 0.4s ease-out;
+}
+
+.review-card--flash-notice {
+  animation: review-card-flash-notice 0.4s ease-out;
 }
 
 .review-icon {
@@ -150,15 +264,16 @@ body {
 
 /* ------------------------------------------------------------------ */
 /* Pregunta "¿para qué sirve?": ventana centrada sobre la zona del     */
-/* tablero (sobre la franja de la tarjeta). Caben siempre: max-height  */
-/* relativo al marco, scroll interno y el botón "Entendido" fijo.      */
+/* tablero (debajo de la barra y de la tarjeta, Tarea 13.6). Caben     */
+/* siempre: max-height relativo al marco, scroll interno y el botón    */
+/* "Entendido" fijo.                                                   */
 /* ------------------------------------------------------------------ */
 .question {
   position: absolute;
-  top: 0;
+  top: calc(var(--top-bar-ratio, 0.1436) * 100cqw + var(--card-height-ratio, 0.28) * 100%);
   left: 0;
   right: 0;
-  bottom: calc(var(--card-height-ratio, 0.28) * 100%);
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;

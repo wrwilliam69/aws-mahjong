@@ -105,4 +105,4 @@ npm test           # pruebas (vitest run)
 npm run build      # build de producción en dist/
 ```
 
-El sitio se publica en GitHub Pages bajo `/aws-mahjong/`, así que Vite usa `base: '/aws-mahjong/'`.
+El sitio se publica en **AWS Amplify Hosting** (usuario y contraseña configurados en la consola por el usuario), que sirve el sitio desde la raíz del dominio, así que Vite usa `base: '/'`. `amplify.yml` no se cambia sin permiso del usuario. Nunca escribas en el repo usuarios, contraseñas, ARNs de cuenta ni credenciales de AWS.

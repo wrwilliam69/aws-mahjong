@@ -4,15 +4,20 @@
 // El reloj ya lo pausa LevelRuntime. Todo se dibuja dentro de #game-frame (nunca
 // fijo a la ventana) y escala con unidades cqw del marco.
 import './ui.css';
-import { CARD_HEIGHT_RATIO } from './layout';
+import { CARD_HEIGHT_RATIO, LOGICAL_WIDTH, TOP_BAR_HEIGHT } from './layout';
 
-// Reexportada para que la escena (LevelScene.ts) use la misma constante.
-export { CARD_HEIGHT_RATIO };
+// Reexportadas para que la escena (LevelScene.ts) use las mismas constantes.
+export { CARD_HEIGHT_RATIO, TOP_BAR_HEIGHT };
 import { acronymText, catalog, type Category } from '../core/content';
 import { loadSave } from '../core/persistence';
 import { PRACTICE_MIN_COMPLETED } from '../core/practice';
 import { bestStarsOf, isUnlocked } from '../core/progress';
-import { FALLBACK_CATEGORY_COLOR, type ReviewData, type ReviewIconSpec } from '../core/review';
+import {
+  buildReviewData,
+  FALLBACK_CATEGORY_COLOR,
+  type ReviewData,
+  type ReviewIconSpec,
+} from '../core/review';
 import { missedCriterionText, type ResultsData } from '../core/results';
 import { LEVELS, type LevelDef } from '../data/levels';
 import iconMap from '../data/icon-map.json';
@@ -23,9 +28,12 @@ const CORRECT_DELAY_MS = 1200;
 
 // Tarea 12.1: la tarjeta y la escena de Phaser comparten la misma constante; el
 // CSS consume la franja vía la variable `--card-height-ratio` (con respaldo 0.28).
+// Tarea 13.6: `--top-bar-ratio` es el alto de la barra superior como fracción del
+// ancho lógico (56 / 390), para que la tarjeta quede justo debajo de la barra.
 const frame = document.getElementById('game-frame');
 if (frame !== null) {
   frame.style.setProperty('--card-height-ratio', String(CARD_HEIGHT_RATIO));
+  frame.style.setProperty('--top-bar-ratio', String(TOP_BAR_HEIGHT / LOGICAL_WIDTH));
 }
 
 let root: HTMLElement | null = null;
@@ -66,6 +74,7 @@ function removeLevelMenuButton(): void {
 export function clearOverlays(): void {
   container().querySelectorAll('.overlay').forEach((el) => el.remove());
   removeLevelMenuButton();
+  hideReviewBackdrop();
 }
 
 function shake(el: HTMLElement): void {
@@ -160,27 +169,33 @@ export function showMenu(callbacks: {
   menu.appendChild(list);
 }
 
-/** Botón "Menú" en la barra superior, mientras el nivel está en curso. */
-export function showLevelMenuButton(onExit: () => void): void {
+/**
+ * Botón "Menú" en la barra superior, mientras el nivel está en curso. `confirmText`
+ * permite el texto de la campaña (por defecto) o el de Práctica libre (Tarea 13.4).
+ */
+export function showLevelMenuButton(onExit: () => void, confirmText?: string): void {
   removeLevelMenuButton();
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'level-menu-btn';
   btn.textContent = 'Menú';
-  btn.addEventListener('click', () => showExitConfirm(onExit));
+  btn.addEventListener('click', () => showExitConfirm(onExit, confirmText));
   container().appendChild(btn);
   levelMenuBtn = btn;
 }
 
 /** Confirmación de salida en HTML dentro del marco (nada de alert/confirm del navegador). */
-export function showExitConfirm(onExit: () => void): void {
+export function showExitConfirm(
+  onExit: () => void,
+  confirmText = '¿Salir del nivel? Perderás el progreso de esta partida',
+): void {
   const ov = overlay('confirm');
   const dialog = document.createElement('div');
   dialog.className = 'confirm__dialog';
 
   const text = document.createElement('p');
   text.className = 'confirm__text';
-  text.textContent = '¿Salir del nivel? Perderás el progreso de esta partida';
+  text.textContent = confirmText;
   dialog.appendChild(text);
 
   const buttons = document.createElement('div');
@@ -241,7 +256,51 @@ function acronymEl(text: string): HTMLElement {
 
 // --- Tarjeta de repaso -----------------------------------------------------
 
+/** Duración del destello del borde de la tarjeta (Tarea 13.6, ~400 ms). */
+const CARD_FLASH_MS = 400;
+
+/** Tipo de destello: verde (acierto), rojo (fallo) o amarillo (aviso de bloqueo). */
+type FlashKind = 'correct' | 'wrong' | 'notice';
+
+// Textos fijos de la tarjeta. Se usan al mostrarla y al medir su altura.
+const TUTORIAL_TEXT =
+  'Toca un ícono y luego su nombre. Solo puedes tocar las fichas brillantes; las grises están bloqueadas.';
+const BLOCKED_PAIR_TEXT =
+  'La pareja de esta ficha todavía está bloqueada. Retira otras fichas para liberarla.';
+const BLOCKED_ABOVE_TEXT = 'Esta ficha está bloqueada: tiene otra encima.';
+const BLOCKED_SIDES_TEXT = 'Esta ficha está bloqueada: tiene fichas a los dos lados.';
+
+/** Holgura de la medición de la tarjeta, en px lógicos (redondeos y saltos de línea). */
+const CARD_FIT_SAFETY = 6;
+
 let cardEl: HTMLElement | null = null;
+let flashTimer: number | null = null;
+let backdropEl: HTMLElement | null = null;
+/** Cierra el panel de "Ver más" abierto en la tarjeta real; null si no hay ninguno. */
+let collapseReview: (() => void) | null = null;
+
+/**
+ * Capa transparente debajo de la tarjeta desplegada (decisión del usuario sobre la
+ * 13.6): un toque fuera de la tarjeta SOLO cierra el panel. Como la capa recibe el
+ * toque, el canvas no se entera y no se selecciona ninguna ficha. Se cierra con
+ * `click` (al final del gesto) para que ningún evento del mismo toque llegue al tablero.
+ */
+function reviewBackdrop(): HTMLElement {
+  if (backdropEl !== null) return backdropEl;
+  const card = reviewCard();
+  backdropEl = document.createElement('div');
+  backdropEl.className = 'review-card__backdrop hidden';
+  backdropEl.addEventListener('click', () => collapseReview?.());
+  // Justo antes de la tarjeta: queda debajo de ella y por encima del canvas; el
+  // botón "Menú" y las ventanas se añaden después y quedan por encima.
+  container().insertBefore(backdropEl, card);
+  return backdropEl;
+}
+
+function hideReviewBackdrop(): void {
+  backdropEl?.classList.add('hidden');
+  collapseReview = null;
+}
 
 function reviewCard(): HTMLElement {
   if (cardEl !== null) return cardEl;
@@ -251,42 +310,147 @@ function reviewCard(): HTMLElement {
   return cardEl;
 }
 
+/**
+ * Destello corto del borde de la tarjeta al actualizarse (Tarea 13.6): verde si
+ * la respuesta fue correcta, rojo si fue incorrecta y amarillo para los avisos
+ * de bloqueo. Solo anima el borde de la tarjeta; nunca mueve el tablero.
+ */
+function flashCard(kind: FlashKind): void {
+  const card = reviewCard();
+  const cls = `review-card--flash-${kind}`;
+  card.classList.remove(
+    'review-card--flash-correct',
+    'review-card--flash-wrong',
+    'review-card--flash-notice',
+  );
+  if (flashTimer !== null) window.clearTimeout(flashTimer);
+  void card.offsetWidth; // reinicia la animación aunque se repita el mismo tipo
+  card.classList.add(cls);
+  flashTimer = window.setTimeout(() => {
+    card.classList.remove(cls);
+    flashTimer = null;
+  }, CARD_FLASH_MS + 50);
+}
+
+/** Vacía la tarjeta y la devuelve a su altura reservada (sin el panel de "Ver más"). */
+function resetCard(card: HTMLElement): void {
+  card.replaceChildren();
+  card.classList.remove('review-card--expanded');
+  if (card === cardEl) hideReviewBackdrop();
+}
+
+/** Párrafo de la tarjeta (tutorial o aviso). */
+function messageEl(className: string, text: string): HTMLElement {
+  const p = document.createElement('p');
+  p.className = className;
+  p.textContent = text;
+  return p;
+}
+
 /** Tutorial al empezar el nivel; se mantiene hasta la primera respuesta. */
 export function showTutorial(): void {
   const card = reviewCard();
-  card.replaceChildren();
-  const p = document.createElement('p');
-  p.className = 'review-card__tutorial';
-  p.textContent =
-    'Toca un ícono y luego su nombre. Solo puedes tocar las fichas brillantes; las grises están bloqueadas.';
-  card.appendChild(p);
+  resetCard(card);
+  card.appendChild(messageEl('review-card__tutorial', TUTORIAL_TEXT));
 }
 
 /** Aviso al seleccionar una ficha libre cuya pareja está bloqueada (Tarea 12.1). */
 export function showBlockedPairHint(): void {
   const card = reviewCard();
-  card.replaceChildren();
-  const p = document.createElement('p');
-  p.className = 'review-card__hint';
-  p.textContent =
-    'La pareja de esta ficha todavía está bloqueada. Retira otras fichas para liberarla.';
-  card.appendChild(p);
+  resetCard(card);
+  card.appendChild(messageEl('review-card__hint', BLOCKED_PAIR_TEXT));
+  flashCard('notice');
 }
 
-/** Aviso al tocar una ficha bloqueada (Tarea 12.2). */
-export function showBlockedTileHint(): void {
+/** Aviso al tocar una ficha bloqueada (Tarea 12.2), según qué la bloquea (13.4). */
+export function showBlockedTileHint(reason: 'above' | 'sides'): void {
   const card = reviewCard();
-  card.replaceChildren();
-  const p = document.createElement('p');
-  p.className = 'review-card__hint';
-  p.textContent = 'Esta ficha está bloqueada: tiene otra encima o los dos lados ocupados.';
-  card.appendChild(p);
+  resetCard(card);
+  card.appendChild(
+    messageEl('review-card__hint', reason === 'above' ? BLOCKED_ABOVE_TEXT : BLOCKED_SIDES_TEXT),
+  );
+  flashCard('notice');
 }
 
-/** Tarjeta de repaso tras cada respuesta; se queda visible hasta la siguiente. */
+/**
+ * Altura de la tarjeta para un nivel (revisión de la Tarea 13.6). Mide, fuera de
+ * la vista, la tarjeta compacta de cada servicio del tablero (con ✅ y con ❌), el
+ * tutorial y los avisos de bloqueo; la altura es la del contenido más alto, con
+ * `CARD_HEIGHT_RATIO` como máximo. Fija `--card-height-ratio` y devuelve la
+ * fracción del alto del marco para que la escena centre el tablero en el espacio
+ * libre de debajo.
+ * Se llama UNA vez al empezar el nivel: durante la partida la tarjeta no cambia
+ * de alto y el tablero no se mueve.
+ */
+export function fitCardToLevel(serviceIds: readonly string[]): number {
+  const frameH = frame?.clientHeight ?? 0;
+  const frameW = frame?.clientWidth ?? 0;
+  if (frame === null || frameH <= 0 || frameW <= 0) return setCardRatio(CARD_HEIGHT_RATIO);
+
+  const probe = document.createElement('div');
+  probe.className = 'review-card review-card--measure';
+  probe.setAttribute('aria-hidden', 'true');
+  container().appendChild(probe);
+
+  let maxH = 0;
+  const measure = (): void => {
+    maxH = Math.max(maxH, probe.offsetHeight);
+  };
+  const messages: Array<[string, string]> = [
+    ['review-card__tutorial', TUTORIAL_TEXT],
+    ['review-card__hint', BLOCKED_PAIR_TEXT],
+    ['review-card__hint', BLOCKED_ABOVE_TEXT],
+    ['review-card__hint', BLOCKED_SIDES_TEXT],
+  ];
+  for (const [className, text] of messages) {
+    resetCard(probe);
+    probe.appendChild(messageEl(className, text));
+    measure();
+  }
+  for (const id of [...new Set(serviceIds)].sort()) {
+    const service = catalog.services.find((s) => s.id === id);
+    if (service === undefined) continue;
+    const category = catalog.categories.find((c) => c.id === service.category);
+    for (const correct of [true, false]) {
+      resetCard(probe);
+      fillReview(probe, buildReviewData(service, category, correct, hasSvg(service.id)));
+      measure();
+    }
+  }
+  probe.remove();
+
+  const safety = (frameW * CARD_FIT_SAFETY) / LOGICAL_WIDTH;
+  return setCardRatio(Math.min(CARD_HEIGHT_RATIO, (maxH + safety) / frameH));
+}
+
+function setCardRatio(ratio: number): number {
+  frame?.style.setProperty('--card-height-ratio', String(ratio));
+  return ratio;
+}
+
+/**
+ * Tarjeta de repaso tras cada respuesta (Tarea 13.6), en vista compacta: el
+ * ícono, el nombre con ✅/❌, la línea de la sigla (si existe) y el `functionText`
+ * siempre visibles; la `explanation`, la categoría y los dominios quedan detrás
+ * del botón "Ver más" / "Ver menos". Se queda hasta la siguiente respuesta (que
+ * la reinicia en compacto) y el borde destella según el resultado.
+ */
 export function showReview(data: ReviewData): void {
   const card = reviewCard();
-  card.replaceChildren();
+  resetCard(card);
+  fillReview(card, data);
+  flashCard(data.correct ? 'correct' : 'wrong');
+}
+
+/**
+ * Contenido de la tarjeta de repaso (vista compacta + detalle + botón). Lo usan
+ * `showReview` y la medición de `fitCardToLevel`, así ambas son idénticas.
+ * "Ver más" despliega el detalle como panel que crece sobre el tablero sin
+ * moverlo (`review-card--expanded`); "Ver menos" lo devuelve a su altura.
+ */
+function fillReview(card: HTMLElement, data: ReviewData): void {
+  const scroll = document.createElement('div');
+  scroll.className = 'review-card__scroll';
 
   const head = document.createElement('div');
   head.className = 'review-card__head';
@@ -299,20 +463,21 @@ export function showReview(data: ReviewData): void {
   names.appendChild(title);
   if (data.acronymText !== null) names.appendChild(acronymEl(data.acronymText));
   head.appendChild(names);
-  card.appendChild(head);
-
-  const scroll = document.createElement('div');
-  scroll.className = 'review-card__scroll';
+  scroll.appendChild(head);
 
   const main = document.createElement('p');
   main.className = 'review-card__main';
   main.textContent = data.functionText;
   scroll.appendChild(main);
 
+  // Detalle oculto tras "Ver más": explicación, categoría y dominios.
+  const extra = document.createElement('div');
+  extra.className = 'review-card__extra hidden';
+
   const text = document.createElement('p');
   text.className = 'review-card__text';
   text.textContent = data.explanation;
-  scroll.appendChild(text);
+  extra.appendChild(text);
 
   const meta = document.createElement('p');
   meta.className = 'review-card__meta';
@@ -320,9 +485,32 @@ export function showReview(data: ReviewData): void {
     `Categoría: ${data.categoryName}`,
     `Dominios: ${data.domainLabels.join(' · ')}`,
   ].join('\n');
-  scroll.appendChild(meta);
+  extra.appendChild(meta);
+
+  scroll.appendChild(extra);
+
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.className = 'review-card__more';
+  more.textContent = 'Ver más';
+  const setExpanded = (expanded: boolean): void => {
+    extra.classList.toggle('hidden', !expanded);
+    card.classList.toggle('review-card--expanded', expanded);
+    more.textContent = expanded ? 'Ver menos' : 'Ver más';
+    scroll.scrollTop = 0;
+    // Solo la tarjeta real (no la de medición) usa la capa que cierra al tocar fuera.
+    if (card !== cardEl) return;
+    if (expanded) {
+      reviewBackdrop().classList.remove('hidden');
+      collapseReview = () => setExpanded(false);
+    } else {
+      hideReviewBackdrop();
+    }
+  };
+  more.addEventListener('click', () => setExpanded(extra.classList.contains('hidden')));
 
   card.appendChild(scroll);
+  card.appendChild(more);
 }
 
 // --- Pregunta --------------------------------------------------------------

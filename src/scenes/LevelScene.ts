@@ -8,7 +8,7 @@
 import * as Phaser from 'phaser';
 import type { TileSpec } from '../core/assign';
 import { catalog, tileLinesOf, type Category, type Service } from '../core/content';
-import { isFree } from '../core/geometry';
+import { blockReason, blockers, isFree } from '../core/geometry';
 import { generateBoard, type BoardSetup } from '../core/generator';
 import { LevelRuntime } from '../core/level-runtime';
 import type { TierConfig } from '../core/peel';
@@ -42,11 +42,16 @@ const PRACTICE_SEED_BASE = 'practica-libre';
 // del mínimo de 13 px del AGENTS.md.
 const MIN_NAME_FONT = 15;
 
-const TOP_BAR_HEIGHT = 56;
-// Franja inferior que reserva la tarjeta de repaso: se comparte con la tarjeta
-// HTML vía src/ui/layout.ts (Tarea 12.1) para que ambas queden en fase.
-const REVIEW_STRIP_RATIO = ui.CARD_HEIGHT_RATIO;
+// Alto de la barra superior: se comparte con el CSS vía src/ui/layout.ts para que
+// la tarjeta informativa quede justo debajo de la barra (Tarea 13.6).
+const TOP_BAR_HEIGHT = ui.TOP_BAR_HEIGHT;
+// La franja de la tarjeta informativa (entre la barra y el tablero) se mide al
+// empezar cada nivel con `ui.fitCardToLevel` (revisión de la Tarea 13.6): la misma
+// fracción fija la altura de la tarjeta HTML y la posición del tablero, que se
+// centra en el espacio libre de debajo y ya no se mueve en toda la partida.
 const BOARD_MARGIN = 6;
+/** Separación mínima entre el borde inferior de la tarjeta y el tablero (px lógicos). */
+const BOARD_TOP_GAP = 12;
 // Tarea 12.2: corrimiento de capa hacia arriba-izquierda, para que el canto
 // (base) de la capa de arriba se asiente sobre la de abajo y se lean los pisos.
 const LAYER_OFFSET_X = -6;
@@ -61,6 +66,9 @@ const TILE_MAX_FONT = 22;
 const NAME_BG = 0xf3ecdc;
 const NAME_TEXT = '#241f18';
 const SELECTED_STROKE = 0x00e5ff;
+/** Borde rojo temporal de las fichas que bloquean a la que se tocó (Tarea 13.4). */
+const BLOCKER_STROKE = 0xff3b30;
+const BLOCKER_HIGHLIGHT_MS = 600;
 /** El SVG ocupa el 75 % de la cara de la ficha de ícono. */
 const ICON_FILL_RATIO = 0.75;
 /** Rasterizado del SVG al doble del tamaño dibujado, para que se vea nítido. */
@@ -229,6 +237,8 @@ export class LevelScene extends Phaser.Scene {
   private useFilter: boolean | null = null;
 
   private layout!: BoardLayout;
+  /** Fracción del alto que ocupa la tarjeta en este nivel (fija toda la partida). */
+  private cardRatio: number = ui.CARD_HEIGHT_RATIO;
   /** Servicios del tablero con ícono en el mapa: solo se piden esos archivos. */
   private neededIconIds: string[] = [];
   private iconRasterSize = 0;
@@ -260,6 +270,8 @@ export class LevelScene extends Phaser.Scene {
     this.failedIconTextures = new Set();
     this.serviceById = new Map(catalog.services.map((s) => [s.id, s]));
     this.categoryById = new Map(catalog.categories.map((c) => [c.id, c]));
+    // Altura de la tarjeta para ESTE tablero, antes de colocar las fichas.
+    this.cardRatio = ui.fitCardToLevel(this.setup.tiles.map((t) => t.serviceId));
     this.layout = this.boardLayout();
     this.neededIconIds = this.boardIconServiceIds();
     // Rasteriza al doble del tamaño en que se dibuja el SVG (nítido en celulares).
@@ -269,7 +281,7 @@ export class LevelScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // `BASE_URL` en vez de '/aws-mahjong/' a mano (el base cambiará después).
+    // `BASE_URL` en vez de una ruta fija a mano (Amplify sirve desde la raíz).
     const base = import.meta.env.BASE_URL;
     for (const serviceId of this.neededIconIds) {
       this.load.svg(`icon:${serviceId}`, `${base}icons/${serviceId}.svg`, {
@@ -288,7 +300,13 @@ export class LevelScene extends Phaser.Scene {
     this.buildHud();
     this.buildTiles();
     ui.showTutorial();
-    ui.showLevelMenuButton(() => this.goToMenu());
+    // Práctica libre (level === null): el botón "Menú" pide confirmar la salida de
+    // la partida; en la campaña, del nivel (Tarea 13.4).
+    const exitText =
+      this.levelData.level === null
+        ? '¿Salir de la partida?'
+        : '¿Salir del nivel? Perderás el progreso de esta partida';
+    ui.showLevelMenuButton(() => this.goToMenu(), exitText);
     this.input.on('pointerdown', this.onPointerDown, this);
   }
 
@@ -340,17 +358,17 @@ export class LevelScene extends Phaser.Scene {
       if (z > maxZ) maxZ = z;
     }
 
-    // Se reserva la franja inferior para la tarjeta de repaso: la geometría de
-    // la Fase 1 es limitada por el ancho (máx. 4 columnas), así que restar la
-    // franja no encoge las fichas ni baja el tamaño mínimo de letra.
-    const reviewStripH = Math.round(this.scale.height * REVIEW_STRIP_RATIO);
+    // Se reserva la franja medida de la tarjeta (entre la barra y el tablero).
+    // Como es como mucho el 28 % de antes, el espacio disponible nunca es menor:
+    // las fichas no se encogen y la letra no baja del mínimo.
+    const reviewStripH = Math.round(this.scale.height * this.cardRatio);
     // La capa superior se corre arriba-izquierda: se reserva ese margen para que
     // ninguna ficha salga del lienzo (Tarea 12.2).
     const stackX = maxZ * Math.abs(LAYER_OFFSET_X);
     const stackY = maxZ * Math.abs(LAYER_OFFSET_Y);
     const availW = this.scale.width - 2 * BOARD_MARGIN - stackX;
     const availH =
-      this.scale.height - TOP_BAR_HEIGHT - reviewStripH - 2 * BOARD_MARGIN - stackY;
+      this.scale.height - TOP_BAR_HEIGHT - reviewStripH - BOARD_TOP_GAP - BOARD_MARGIN - stackY;
     // `unit` es media ficha en píxeles: la ficha ocupa [x, x+2) medias unidades.
     const unit = Math.min(availW / (maxX + 2), availH / (maxY + 2));
     const boardW = (maxX + 2) * unit;
@@ -359,7 +377,10 @@ export class LevelScene extends Phaser.Scene {
       unit,
       tileSize: unit * 2,
       originX: (this.scale.width - boardW) / 2,
-      originY: TOP_BAR_HEIGHT + BOARD_MARGIN + (availH - boardH) / 2,
+      // Decisión del usuario (13.6): el tablero se centra en vertical en el espacio
+      // libre debajo de la tarjeta medida; `stackY` deja sitio a las capas, que se
+      // corren hacia arriba. Se calcula una sola vez al empezar el nivel.
+      originY: TOP_BAR_HEIGHT + reviewStripH + BOARD_TOP_GAP + stackY + (availH - boardH) / 2,
     };
   }
 
@@ -689,10 +710,15 @@ export class LevelScene extends Phaser.Scene {
     switch (result.type) {
       case 'ignored':
         return;
-      case 'blocked':
+      case 'blocked': {
         this.shake(result.slot);
-        ui.showBlockedTileHint();
+        // Tarea 13.4: se resaltan las fichas que la bloquean y el mensaje dice
+        // si el motivo es que tiene algo encima o fichas a los dos lados.
+        const reason = blockReason(this.rt.g, this.rt.present, result.slot);
+        this.highlightBlockers(blockers(this.rt.g, this.rt.present, result.slot));
+        ui.showBlockedTileHint(reason === 'above' ? 'above' : 'sides');
         return;
+      }
       case 'select':
         this.showBlockedPairHint(result.slot);
         this.refreshTiles();
@@ -735,6 +761,17 @@ export class LevelScene extends Phaser.Scene {
         view.container.x = view.centerX;
       },
     });
+  }
+
+  /** Borde rojo ~600 ms en las fichas que bloquean a la tocada (Tarea 13.4). */
+  private highlightBlockers(slots: readonly number[]): void {
+    if (slots.length === 0) return;
+    for (const slot of slots) {
+      const view = this.views[slot];
+      if (view === undefined || view.removed) continue;
+      view.face.setStrokeStyle(5, BLOCKER_STROKE, 1);
+    }
+    this.time.delayedCall(BLOCKER_HIGHLIGHT_MS, () => this.refreshTiles());
   }
 
   private animateMatch(a: number, b: number, done: () => void): void {
