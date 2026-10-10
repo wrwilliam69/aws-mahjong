@@ -10,6 +10,7 @@ import type { TileSpec } from '../core/assign';
 import { catalog, tileLinesOf, type Category, type Service } from '../core/content';
 import { blockReason, blockers, isFree } from '../core/geometry';
 import { generateBoard, type BoardSetup } from '../core/generator';
+import { applyHintCost } from '../core/hints';
 import { LevelRuntime } from '../core/level-runtime';
 import type { TierConfig } from '../core/peel';
 import { loadSave, persistSave } from '../core/persistence';
@@ -45,6 +46,10 @@ const MIN_NAME_FONT = 15;
 // Alto de la barra superior: se comparte con el CSS vía src/ui/layout.ts para que
 // la tarjeta informativa quede justo debajo de la barra (Tarea 13.6).
 const TOP_BAR_HEIGHT = ui.TOP_BAR_HEIGHT;
+// Tarea 15: franja reservada al pie para el botón "Pista" (misma constante que el
+// CSS vía src/ui/layout.ts). El tablero se centra en el espacio de encima, así el
+// botón nunca tapa fichas y el tablero no se mueve al aparecer.
+const HINT_BAR_HEIGHT = ui.HINT_BAR_HEIGHT;
 // La franja de la tarjeta informativa (entre la barra y el tablero) se mide al
 // empezar cada nivel con `ui.fitCardToLevel` (revisión de la Tarea 13.6): la misma
 // fracción fija la altura de la tarjeta HTML y la posición del tablero, que se
@@ -73,6 +78,10 @@ const SELECTED_STROKE = 0x00e5ff;
 /** Borde rojo temporal de las fichas que bloquean a la que se tocó (Tarea 13.4). */
 const BLOCKER_STROKE = 0xff3b30;
 const BLOCKER_HIGHLIGHT_MS = 600;
+// Tarea 15: pulso amarillo de las dos fichas de una pista (~1,5 s).
+const HINT_STROKE = 0xffd43b;
+const HINT_PULSE_HALF_MS = 250; // una subida o bajada del pulso
+const HINT_PULSE_CYCLES = 3; // 3 ciclos × 500 ms = 1,5 s
 // Tarea 13.5: libre vs bloqueada se diferencian FÍSICAMENTE, no solo por color.
 // La libre está "levantada" (escala 1, canto 3D, sombra y borde claro sutil); la
 // bloqueada está "hundida" (sin sombra ni canto, escala encogida, cara oscura y
@@ -266,6 +275,8 @@ export class LevelScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private timeText!: Phaser.GameObjects.Text;
   private lastShownSeconds = -1;
+  /** Botón "Pista" del pie (Tarea 15); se actualiza su contador al usarla. */
+  private hintButton!: ui.HintButton;
 
   private serviceById = new Map<string, Service>();
   private categoryById = new Map<string, Category>();
@@ -326,6 +337,9 @@ export class LevelScene extends Phaser.Scene {
         ? '¿Salir de la partida?'
         : '¿Salir del nivel? Perderás el progreso de esta partida';
     ui.showLevelMenuButton(() => this.goToMenu(), exitText);
+    // Pista (Tarea 15): máximo 3 por partida, también en Práctica libre.
+    this.hintButton = ui.showHintButton(() => this.useHint());
+    this.hintButton.setRemaining(this.rt.hintsRemaining());
     this.input.on('pointerdown', this.onPointerDown, this);
   }
 
@@ -386,8 +400,16 @@ export class LevelScene extends Phaser.Scene {
     const stackX = maxZ * Math.abs(LAYER_OFFSET_X);
     const stackY = maxZ * Math.abs(LAYER_OFFSET_Y);
     const availW = this.scale.width - 2 * BOARD_MARGIN - stackX;
+    // La franja del botón "Pista" (Tarea 15) se reserva también: el tablero se
+    // centra en el espacio de encima y el botón HTML vive al pie, sin superponerse.
     const availH =
-      this.scale.height - TOP_BAR_HEIGHT - reviewStripH - BOARD_TOP_GAP - BOARD_MARGIN - stackY;
+      this.scale.height -
+      TOP_BAR_HEIGHT -
+      reviewStripH -
+      BOARD_TOP_GAP -
+      BOARD_MARGIN -
+      stackY -
+      HINT_BAR_HEIGHT;
     // `unit` es media ficha en píxeles: la ficha ocupa [x, x+2) medias unidades.
     const unit = Math.min(availW / (maxX + 2), availH / (maxY + 2));
     const boardW = (maxX + 2) * unit;
@@ -822,6 +844,45 @@ export class LevelScene extends Phaser.Scene {
     this.time.delayedCall(BLOCKER_HIGHLIGHT_MS, () => this.refreshTiles());
   }
 
+  /**
+   * Usa una pista (Tarea 15): el core elige la pareja y suma el uso; aquí se
+   * resta el costo en puntos, se pulsan las dos fichas en amarillo ~1,5 s y la
+   * tarjeta de arriba muestra el mensaje (con destello amarillo). No retira
+   * fichas ni revela el functionText.
+   */
+  private useHint(): void {
+    const pair = this.rt.useHint();
+    if (pair === null) return;
+    this.hintButton.setRemaining(this.rt.hintsRemaining());
+    this.score = applyHintCost(this.score);
+    this.scoreText.setText(`Puntos: ${this.score}`);
+    this.pulseHint(pair[0], pair[1]);
+    ui.showHint();
+  }
+
+  /** Pulso amarillo de las dos fichas de una pista durante ~1,5 s (Tarea 15). */
+  private pulseHint(a: number, b: number): void {
+    for (const slot of [a, b]) {
+      const view = this.views[slot];
+      if (view === undefined || view.removed) continue;
+      const size = view.halfW * 2;
+      const glow = this.add
+        .rectangle(0, 0, size, size, HINT_STROKE, 0)
+        .setStrokeStyle(4, HINT_STROKE, 1)
+        .setRounded(Math.max(4, size * 0.1))
+        .setAlpha(0.15);
+      view.container.add(glow);
+      this.tweens.add({
+        targets: glow,
+        alpha: 1,
+        duration: HINT_PULSE_HALF_MS,
+        yoyo: true,
+        repeat: HINT_PULSE_CYCLES - 1,
+        onComplete: () => glow.destroy(),
+      });
+    }
+  }
+
   private animateMatch(a: number, b: number, done: () => void): void {
     for (const slot of [a, b]) {
       const view = this.views[slot];
@@ -884,6 +945,7 @@ export class LevelScene extends Phaser.Scene {
       failedServiceIds: failedServiceIds(this.rt.perService),
       newServices: 0,
       E3: errorLimitFor3Stars(this.setup.tier),
+      hintsUsed: this.rt.hintsUsed,
     });
 
     // Guarda los récords del nivel (mejores estrellas, puntos y tiempo por

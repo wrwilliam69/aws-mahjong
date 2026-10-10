@@ -466,9 +466,21 @@ Feedback del usuario: la tarjeta de repaso abajo no se ve; la mirada siempre est
 
 ---
 
-## Fase 2 — Enganche y aprendizaje (no empezar todavía)
+## Fase 2 — Enganche y aprendizaje
 
-Combos (§11.2), pista (§8.1), repetición espaciada (§10), selección de servicios por nivel (§10.4), mapa de mundos por dominio (§7.6), PWA instalable.
+Combos (§11.2), repetición espaciada (§10), selección de servicios por nivel (§10.4), mapa de mundos por dominio (§7.6), PWA instalable.
+
+### [x] Tarea 15 — Botón de Pista (inicio de la Fase 2, §8.1)
+
+**Lee:** §8.1 (pista) y §13.6 del diseño (tarjeta y destello), y `AGENTS.md` §5 (determinismo) y §6.
+
+1. `src/core/hints.ts`: función pura `hintPair(g, tiles, present)` que devuelve UNA pareja disponible reutilizando `availablePairs` de `solve.ts` (no duplica la regla de pareja de §6). Elección determinista: ordena por `serviceId` y luego por id de ficha (menor slot y, como desempate total, el mayor) y devuelve la primera; `null` si no hay parejas. Constantes `MAX_HINTS = 3` y `HINT_COST = 50`, y `applyHintCost(points)` que resta 50 sin bajar de 0. Pruebas en `tests/hints.test.ts`.
+2. Estado en `LevelRuntime`: `hintsUsed`, `hintsRemaining()` y `useHint()` (devuelve la pareja, suma el uso y respeta el máximo; `null` si el tablero no está activo o se agotaron).
+3. Botón "Pista" en el espacio libre **debajo del tablero**, centrado (`src/ui/game-ui.ts` + `.hint-btn` en `ui.css`), con el contador de pistas restantes ("💡 Pista (3)"). Máximo 3 pistas por partida, en niveles y en Práctica libre. Con 0 pistas se ve deshabilitado y no hace nada.
+4. Al tocarlo (`LevelScene.useHint`): las dos fichas hacen un pulso amarillo ~1,5 s (`pulseHint`) y la tarjeta de arriba muestra "Pista: estas dos fichas forman pareja." con el destello amarillo de la 13.6. No revela el `functionText`: la pregunta "¿Para qué sirve…?" sigue saliendo igual al emparejarlas.
+5. Costo: cada pista resta 50 puntos (sin bajar de 0). No cambia las reglas de estrellas (`scoring.ts`). Resultados: `ResultsData.hintsUsed` y línea "Pistas usadas: N".
+6. El tablero no se mueve al aparecer el botón (Tarea 13.6): la franja del pie (`HINT_BAR_HEIGHT` en `src/ui/layout.ts`) se reserva al calcular el layout del nivel, así el tablero se centra encima y nunca se superpone al botón.
+7. Verificado en 360 px y en PC. `npm test` y `npm run build` pasan. No se hace git commit ni push.
 
 ## Fase 3 — Pulido y retos (no empezar todavía)
 

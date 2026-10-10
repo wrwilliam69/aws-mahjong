@@ -5,6 +5,7 @@ import type { TileSpec } from './assign';
 import { catalog } from './content';
 import { bit, buildGeometry, isFree, type Geometry } from './geometry';
 import type { BoardSetup } from './generator';
+import { hintPair, MAX_HINTS } from './hints';
 import type { Pair, TierConfig } from './peel';
 import { buildQuestion, type Question, type QuestionCatalog } from './questions';
 import { makeRng, type Rng } from './rng';
@@ -96,6 +97,8 @@ export class LevelRuntime {
   question: Question | null = null;
   /** Pareja retirada que espera respuesta (se conserva retirada aunque la respuesta sea incorrecta). */
   pending: Pair | null = null;
+  /** Pistas usadas en la partida (§8.1); máximo `MAX_HINTS`. */
+  hintsUsed = 0;
 
   private readonly source: QuestionCatalog;
   private readonly rng: Rng;
@@ -117,6 +120,26 @@ export class LevelRuntime {
   /** El tablero es interactivo (y el reloj avanza) si no hay pregunta y queda alguna ficha. */
   isBoardActive(): boolean {
     return this.question === null && !this.isComplete();
+  }
+
+  /** Pistas que quedan en la partida (nunca negativas). */
+  hintsRemaining(): number {
+    return Math.max(0, MAX_HINTS - this.hintsUsed);
+  }
+
+  /**
+   * Usa una pista (§8.1): devuelve una pareja disponible y suma el uso. Devuelve
+   * null si el tablero no está activo, si ya se gastaron las `MAX_HINTS` o si no
+   * queda ninguna pareja (con parejas únicas, imposible). No retira fichas ni
+   * revela nada: la escena solo la resalta.
+   */
+  useHint(): Pair | null {
+    if (!this.isBoardActive()) return null;
+    if (this.hintsUsed >= MAX_HINTS) return null;
+    const pair = hintPair(this.g, this.setup.tiles, this.present);
+    if (pair === null) return null;
+    this.hintsUsed++;
+    return pair;
   }
 
   /** Avanza el reloj del tablero solo si el tablero está activo (§11.1). */

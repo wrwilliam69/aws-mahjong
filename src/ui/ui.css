@@ -444,6 +444,13 @@ body {
   color: #ffd43b;
 }
 
+.results__hints {
+  margin: 0;
+  font-size: calc(100cqw * 15 / 390);
+  text-align: center;
+  color: #b9c4d1;
+}
+
 .results__fail {
   margin: 4px 0 0;
   font-size: calc(100cqw * 16 / 390);
@@ -695,6 +702,39 @@ body {
 
 .level-menu-btn:active {
   background: #1e2c3d;
+}
+
+/* Botón "Pista" (Tarea 15): franja libre al pie del marco, centrado. Nunca se
+   superpone a las fichas (el tablero se centra en el espacio de encima) ni a la
+   tarjeta de arriba. El contador entre paréntesis son las pistas restantes. */
+.hint-btn {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100cqw * 10 / 390);
+  transform: translateX(-50%);
+  min-height: calc(100cqw * 40 / 390);
+  padding: 0 calc(100cqw * 16 / 390);
+  border-radius: calc(100cqw * 10 / 390);
+  border: 2px solid #b8860b;
+  background: #ffd43b;
+  color: #241f18;
+  font-family: inherit;
+  font-size: calc(100cqw * 16 / 390);
+  font-weight: bold;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.hint-btn:not(:disabled):active {
+  background: #f2c530;
+}
+
+.hint-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  border-color: #55606e;
+  background: #3a4a5c;
+  color: #c9d2dc;
 }
 
 /* Confirmación "¿Salir del nivel?" centrada dentro del marco. */

@@ -12,3 +12,9 @@ export const CARD_HEIGHT_RATIO = 0.28;
 // tarjeta justo debajo de la barra (`--top-bar-ratio` en game-ui.ts).
 export const LOGICAL_WIDTH = 390;
 export const TOP_BAR_HEIGHT = 56;
+
+// Tarea 15: franja reservada al pie del marco para el botón "Pista". El tablero
+// se centra en el espacio libre de ENCIMA de esta franja (LevelScene.boardLayout)
+// y el botón HTML se coloca dentro de ella, así nunca se superponen y el tablero
+// no se mueve al aparecer el botón.
+export const HINT_BAR_HEIGHT = 56;

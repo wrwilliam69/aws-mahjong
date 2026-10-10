@@ -20,6 +20,8 @@ export interface ResultsData {
   parMs: number;
   missed: MissedCriterion | null;
   failedServices: readonly string[];
+  /** Pistas usadas en la partida (Tarea 15); se muestra como "Pistas usadas: N". */
+  hintsUsed: number;
 }
 
 /** Máximo de errores para ★3 por tier (§7.4). */
@@ -111,6 +113,8 @@ export interface BuildResultsInput {
   newServices?: number;
   /** Máximo de errores para ★3 (§7.4); por defecto, el del tier del setup. */
   E3?: number;
+  /** Pistas usadas en la partida (Tarea 15); por defecto, 0. */
+  hintsUsed?: number;
 }
 
 /** Resultados de un nivel completado: estrellas y criterio que faltó. */
@@ -145,5 +149,6 @@ export function buildResults(input: BuildResultsInput): ResultsData {
       E3,
     }),
     failedServices: [...input.failedServiceIds],
+    hintsUsed: input.hintsUsed ?? 0,
   };
 }

@@ -4,10 +4,10 @@
 // El reloj ya lo pausa LevelRuntime. Todo se dibuja dentro de #game-frame (nunca
 // fijo a la ventana) y escala con unidades cqw del marco.
 import './ui.css';
-import { CARD_HEIGHT_RATIO, LOGICAL_WIDTH, TOP_BAR_HEIGHT } from './layout';
+import { CARD_HEIGHT_RATIO, HINT_BAR_HEIGHT, LOGICAL_WIDTH, TOP_BAR_HEIGHT } from './layout';
 
 // Reexportadas para que la escena (LevelScene.ts) use las mismas constantes.
-export { CARD_HEIGHT_RATIO, TOP_BAR_HEIGHT };
+export { CARD_HEIGHT_RATIO, HINT_BAR_HEIGHT, TOP_BAR_HEIGHT };
 import { acronymText, catalog, type Category } from '../core/content';
 import { loadSave } from '../core/persistence';
 import { PRACTICE_MIN_COMPLETED } from '../core/practice';
@@ -64,16 +64,23 @@ function overlay(classNames: string): HTMLElement {
 }
 
 let levelMenuBtn: HTMLButtonElement | null = null;
+let hintBtn: HTMLButtonElement | null = null;
 
 function removeLevelMenuButton(): void {
   levelMenuBtn?.remove();
   levelMenuBtn = null;
 }
 
-/** Quita todas las superposiciones y el botón "Menú" del nivel. */
+function removeHintButton(): void {
+  hintBtn?.remove();
+  hintBtn = null;
+}
+
+/** Quita todas las superposiciones, el botón "Menú" y el botón "Pista". */
 export function clearOverlays(): void {
   container().querySelectorAll('.overlay').forEach((el) => el.remove());
   removeLevelMenuButton();
+  removeHintButton();
   hideReviewBackdrop();
 }
 
@@ -222,6 +229,35 @@ export function showExitConfirm(
   ov.appendChild(dialog);
 }
 
+/** Control del botón "Pista" (Tarea 15): actualizar el contador y deshabilitarlo. */
+export interface HintButton {
+  /** Muestra "💡 Pista (N)" y lo deshabilita cuando no quedan pistas. */
+  setRemaining(remaining: number): void;
+}
+
+/**
+ * Botón "Pista" en la franja libre al pie del marco (nunca encima de las fichas
+ * ni de la tarjeta de arriba). El número entre paréntesis son las pistas que
+ * quedan. Con 0 pistas se ve deshabilitado y no responde al toque.
+ */
+export function showHintButton(onHint: () => void): HintButton {
+  removeHintButton();
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'hint-btn';
+  btn.addEventListener('click', () => {
+    if (!btn.disabled) onHint();
+  });
+  container().appendChild(btn);
+  hintBtn = btn;
+  return {
+    setRemaining(remaining: number): void {
+      btn.textContent = `💡 Pista (${remaining})`;
+      btn.disabled = remaining <= 0;
+    },
+  };
+}
+
 /** ¿El servicio tiene SVG oficial copiado en public/icons (icon-map.json)? */
 function hasSvg(serviceId: string): boolean {
   return (iconMap as Record<string, string | undefined>)[serviceId] !== undefined;
@@ -269,6 +305,8 @@ const BLOCKED_PAIR_TEXT =
   'La pareja de esta ficha todavía está bloqueada. Retira otras fichas para liberarla.';
 const BLOCKED_ABOVE_TEXT = 'Esta ficha está bloqueada: tiene otra encima.';
 const BLOCKED_SIDES_TEXT = 'Esta ficha está bloqueada: tiene fichas a los dos lados.';
+/** Pista (Tarea 15): mensaje de la tarjeta al usar una pista. No revela el functionText. */
+const HINT_TEXT = 'Pista: estas dos fichas forman pareja.';
 
 /** Holgura de la medición de la tarjeta, en px lógicos (redondeos y saltos de línea). */
 const CARD_FIT_SAFETY = 6;
@@ -373,6 +411,18 @@ export function showBlockedTileHint(reason: 'above' | 'sides'): void {
 }
 
 /**
+ * Mensaje al usar una pista (Tarea 15): la tarjeta de arriba lo muestra con el
+ * destello amarillo de la 13.6. NO revela el functionText: la pregunta "¿Para qué
+ * sirve…?" sigue saliendo igual al emparejar las dos fichas.
+ */
+export function showHint(): void {
+  const card = reviewCard();
+  resetCard(card);
+  card.appendChild(messageEl('review-card__hint', HINT_TEXT));
+  flashCard('notice');
+}
+
+/**
  * Altura de la tarjeta para un nivel (revisión de la Tarea 13.6). Mide, fuera de
  * la vista, la tarjeta compacta de cada servicio del tablero (con ✅ y con ❌), el
  * tutorial y los avisos de bloqueo; la altura es la del contenido más alto, con
@@ -401,6 +451,7 @@ export function fitCardToLevel(serviceIds: readonly string[]): number {
     ['review-card__hint', BLOCKED_PAIR_TEXT],
     ['review-card__hint', BLOCKED_ABOVE_TEXT],
     ['review-card__hint', BLOCKED_SIDES_TEXT],
+    ['review-card__hint', HINT_TEXT],
   ];
   for (const [className, text] of messages) {
     resetCard(probe);
@@ -685,6 +736,8 @@ export interface ResultsCallbacks {
  */
 export function showResults(data: ResultsData, callbacks: ResultsCallbacks): void {
   const uiRoot = container();
+  // Al terminar la partida ya no hay pistas: se quita el botón del pie.
+  removeHintButton();
   const ov = overlay('results');
   const dialog = document.createElement('div');
   dialog.className = 'results__dialog';
@@ -706,6 +759,12 @@ export function showResults(data: ResultsData, callbacks: ResultsCallbacks): voi
   stats.className = 'results__stats';
   stats.textContent = `${data.points} puntos · ${formatTime(data.boardTimeMs)}`;
   body.appendChild(stats);
+
+  // Pistas usadas (Tarea 15).
+  const hints = document.createElement('p');
+  hints.className = 'results__hints';
+  hints.textContent = `Pistas usadas: ${data.hintsUsed}`;
+  body.appendChild(hints);
 
   if (data.missed !== null) {
     const missed = document.createElement('p');
