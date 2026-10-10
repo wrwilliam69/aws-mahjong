@@ -52,13 +52,21 @@ const SELECTED_STROKE = 0x00e5ff;
 const ICON_FILL_RATIO = 0.75;
 /** Rasterizado del SVG al doble del tamaño dibujado, para que se vea nítido. */
 const ICON_RASTER_MULT = 2;
-/** Respaldo si el renderer no tiene filtros por Game Object (Canvas): capa
- * oscura al ~65 %, como pide la Tarea 12.2 (antes era 50 %). */
+/**
+ * Tarea 13.1 — fichas bloqueadas:
+ * - true: escala de grises con el filtro de Phaser 4, aplicado SOLO al contenido
+ *   de la cara (imagen del ícono o texto) y nunca al Container; la cara y el
+ *   canto, que son colores planos, se pasan a su gris exacto sin filtro.
+ * - false: respaldo sin ningún filtro: capa oscura al ~65 % y tinte gris oscuro
+ *   en el ícono.
+ */
+const USE_GRAYSCALE_FILTER = true;
+/** Capa oscura del respaldo sin filtro (también se usa si el renderer es Canvas). */
 const BLOCKED_OVERLAY_ALPHA = 0.65;
-/** Transición al desbloquear una ficha (quitar el gris o la capa oscura). */
+/** Tinte gris oscuro del ícono SVG en el respaldo sin filtro. */
+const BLOCKED_ICON_TINT = 0x5a5a5a;
+/** Transición al bloquear o desbloquear una ficha. */
 const UNBLOCK_FADE_MS = 150;
-/** Borde extra del framebuffer del filtro de grises de cada ficha, en píxeles. */
-const FILTER_PAD = 28;
 
 export interface BoardLayout {
   unit: number;
@@ -100,12 +108,22 @@ interface TileView {
   halfH: number;
   container: Phaser.GameObjects.Container;
   face: Phaser.GameObjects.Rectangle;
+  /** Canto de la ficha (color de la categoría o cara oscurecida). */
+  base: Phaser.GameObjects.Rectangle;
+  faceColor: number;
+  edgeColor: number;
   /** Sombra proyectada abajo-derecha hacia las fichas de las capas inferiores. */
   shadow: Phaser.GameObjects.Rectangle;
-  /** Capa negra semitransparente (respaldo cuando no hay filtros de gris). */
+  /** Contenido de la cara (imagen del ícono o texto): recibe el filtro de grises. */
+  content: Array<Phaser.GameObjects.Image | Phaser.GameObjects.Text>;
+  /** Ícono SVG, si la ficha lo tiene: recibe el tinte del respaldo sin filtro. */
+  iconImage: Phaser.GameObjects.Image | null;
+  /** Capa negra semitransparente (respaldo sin filtro). */
   overlay: Phaser.GameObjects.Rectangle;
-  /** Matriz del filtro de escala de grises; null si la ficha está libre o sin filtros. */
-  grayscale: Phaser.Display.ColorMatrix | null;
+  /** Matrices del filtro de grises del contenido; null si no hay filtro activo. */
+  grayscale: Phaser.Display.ColorMatrix[] | null;
+  /** Nivel de bloqueo animado: 0 = libre, 1 = bloqueada (lo mueve el tween). */
+  blockFx: { t: number };
   blocked: boolean;
   removed: boolean;
 }
@@ -127,6 +145,22 @@ function darken(color: number, factor: number): number {
   return (r << 16) | (g << 8) | b;
 }
 
+/** Gris de un color plano: promedio RGB, igual que `ColorMatrix.grayscale(1)` de Phaser. */
+function grayOf(color: number): number {
+  const avg = Math.round((((color >> 16) & 0xff) + ((color >> 8) & 0xff) + (color & 0xff)) / 3);
+  return (avg << 16) | (avg << 8) | avg;
+}
+
+/** Mezcla lineal de dos colores RGB: t = 0 → a, t = 1 → b. */
+function lerpColor(a: number, b: number, t: number): number {
+  const channel = (shift: number): number => {
+    const ca = (a >> shift) & 0xff;
+    const cb = (b >> shift) & 0xff;
+    return Math.round(ca + (cb - ca) * t);
+  };
+  return (channel(16) << 16) | (channel(8) << 8) | channel(0);
+}
+
 function formatTime(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -146,8 +180,11 @@ export class LevelScene extends Phaser.Scene {
   private finished = false;
   /** En la primera pasada la capa de bloqueo se pinta directa, sin transición. */
   private initialPaint = true;
-  /** ¿El renderer soporta filtros por Game Object (WebGL)? Se descubre al bloquear. */
-  private filtersAvailable = false;
+  /**
+   * ¿Se usa el filtro de grises? null = aún no se sabe: se decide al bloquear la
+   * primera ficha (false si USE_GRAYSCALE_FILTER es false o el renderer es Canvas).
+   */
+  private useFilter: boolean | null = null;
 
   private layout!: BoardLayout;
   /** Servicios del tablero con ícono en el mapa: solo se piden esos archivos. */
@@ -176,7 +213,7 @@ export class LevelScene extends Phaser.Scene {
     this.score = 0;
     this.finished = false;
     this.initialPaint = true;
-    this.filtersAvailable = false;
+    this.useFilter = null;
     this.lastShownSeconds = -1;
     this.failedIconTextures = new Set();
     this.serviceById = new Map(catalog.services.map((s) => [s.id, s]));
@@ -362,22 +399,24 @@ export class LevelScene extends Phaser.Scene {
       .setRounded(radius);
     const face = this.add.rectangle(0, 0, tileSize, tileSize, faceColor).setRounded(radius);
 
-    const children: Phaser.GameObjects.GameObject[] = [shadow, base, face];
+    // Contenido de la cara: en las bloqueadas, el filtro de grises va aquí (Tarea 13.1).
+    let iconImage: Phaser.GameObjects.Image | null = null;
+    let content: Array<Phaser.GameObjects.Image | Phaser.GameObjects.Text>;
     if (iconReady) {
-      children.push(this.makeIconImage(tile.serviceId, tileSize));
+      iconImage = this.makeIconImage(tile.serviceId, tileSize);
+      content = [iconImage];
     } else if (tile.face === 'icon') {
-      children.push(this.makeIconLabel(service, tileSize));
+      content = [this.makeIconLabel(service, tileSize)];
     } else {
-      children.push(...this.makeNameLabel(service, tileSize));
+      content = this.makeNameLabel(service, tileSize);
     }
 
-    // Capa oscura común a todas las bloqueadas (la transición la maneja refreshTiles).
+    // Capa oscura del respaldo sin filtro (la transición la maneja refreshTiles).
     const overlay = this.add
       .rectangle(0, 0, tileSize, tileSize, 0x000000, 1)
       .setRounded(radius)
       .setAlpha(0);
-    children.push(overlay);
-    container.add(children);
+    container.add([shadow, base, face, ...content, overlay]);
 
     return {
       slot,
@@ -390,9 +429,15 @@ export class LevelScene extends Phaser.Scene {
       halfH: tileSize / 2,
       container,
       face,
+      base,
+      faceColor,
+      edgeColor,
       shadow,
+      content,
+      iconImage,
       overlay,
       grayscale: null,
+      blockFx: { t: 0 },
       blocked: false,
       removed: false,
     };
@@ -472,104 +517,92 @@ export class LevelScene extends Phaser.Scene {
     this.initialPaint = false;
   }
 
-  // --- Fichas bloqueadas: escala de grises o respaldo oscuro -----------------
+  // --- Fichas bloqueadas: escala de grises o respaldo oscuro (Tarea 13.1) ----
+  //
+  // El filtro NUNCA va en el Container de la ficha: un Container no tiene tamaño
+  // propio, así que Phaser enfoca su filtro en todo el lienzo y dibuja el
+  // resultado fuera de sitio (la copia desplazada del bug). En la imagen o el
+  // texto, que sí tienen tamaño, el filtro interno trabaja en el espacio local
+  // del objeto y Phaser le aplica la transformación del Container padre.
 
-  /**
-   * Aplica (o quita) el estado visual de bloqueada (§12.2). En WebGL se usa el
-   * filtro de escala de grises por Game Object de Phaser 4; si el renderer no
-   * lo soporta (Canvas), se usa la capa oscura de respaldo al ~65 %.
-   */
+  /** Aplica (o quita) el estado visual de bloqueada, con transición. */
   private applyBlockedVisual(view: TileView, blocked: boolean): void {
     if (view.blocked === blocked) return;
     view.blocked = blocked;
-    if (blocked) {
-      if (this.enableFiltersOnce(view)) {
-        const cm = this.ensureGrayscale(view);
-        if (cm !== null) {
-          this.tweenGrayscale(view, cm, 1);
-          return;
-        }
-      }
-      this.tweenOverlay(view, BLOCKED_OVERLAY_ALPHA);
-    } else if (view.grayscale !== null) {
-      this.tweenGrayscale(view, view.grayscale, 0);
-    } else {
-      this.tweenOverlay(view, 0);
+    if (blocked && this.canUseFilter(view)) this.ensureGrayscale(view);
+    this.tweenBlock(view, blocked ? 1 : 0);
+  }
+
+  /** Decide una sola vez por partida si se usa el filtro (WebGL y constante en true). */
+  private canUseFilter(view: TileView): boolean {
+    if (!USE_GRAYSCALE_FILTER) return false;
+    if (this.useFilter !== null) return this.useFilter;
+    const probe = view.content[0];
+    if (probe === undefined) return false;
+    probe.enableFilters(); // en Canvas no hace nada y `filters` queda en null
+    this.useFilter = probe.filters !== null;
+    return this.useFilter;
+  }
+
+  /** Pone el filtro de grises (lista interna) en cada objeto del contenido de la cara. */
+  private ensureGrayscale(view: TileView): void {
+    if (view.grayscale !== null) return;
+    const matrices: Phaser.Display.ColorMatrix[] = [];
+    for (const obj of view.content) {
+      obj.enableFilters(); // idempotente: no hace nada si ya estaba habilitado
+      const filters = obj.filters;
+      if (filters === null) continue;
+      const ctrl = filters.internal.addColorMatrix();
+      ctrl.colorMatrix.grayscale(1);
+      ctrl.colorMatrix.alpha = view.blockFx.t;
+      matrices.push(ctrl.colorMatrix);
     }
+    view.grayscale = matrices;
   }
 
-  /** Habilita los filtros del contenedor la primera vez; false si no los soporta. */
-  private enableFiltersOnce(view: TileView): boolean {
-    if (this.filtersAvailable) return true;
-    view.container.enableFilters();
-    this.filtersAvailable = view.container.filters !== null;
-    return this.filtersAvailable;
-  }
-
-  /** Crea el filtro de grises de la ficha; devuelve su matriz o null sin filtros. */
-  private ensureGrayscale(view: TileView): Phaser.Display.ColorMatrix | null {
-    if (view.grayscale !== null) return view.grayscale;
-    const filters = view.container.filters;
-    if (filters === null) return null;
-    // Framebuffer del filtro del tamaño de la ficha (no de toda la pantalla).
-    const size = view.halfW * 2 + 2 * FILTER_PAD;
-    view.container.focusFiltersOverride(size / 2, size / 2, size, size);
-    const ctrl = filters.internal.addColorMatrix();
-    ctrl.colorMatrix.grayscale(1);
-    ctrl.colorMatrix.alpha = 0;
-    view.grayscale = ctrl.colorMatrix;
-    return view.grayscale;
-  }
-
-  /**
-   * Transición del gris: 1 = escala de grises, 0 = color normal. En la primera
-   * pintada va directo; al desbloquear, al terminar se libera el filtro.
-   */
-  private tweenGrayscale(
-    view: TileView,
-    cm: Phaser.Display.ColorMatrix,
-    target: number,
-  ): void {
-    this.tweens.killTweensOf(cm);
-    if (target === 1) {
-      if (this.initialPaint) {
-        cm.alpha = 1;
-      } else {
-        this.tweens.add({ targets: cm, alpha: 1, duration: UNBLOCK_FADE_MS });
-      }
-      return;
-    }
-    if (this.initialPaint) {
-      cm.alpha = 0;
-      this.releaseGrayscale(view, cm);
-    } else {
-      this.tweens.add({
-        targets: cm,
-        alpha: 0,
-        duration: UNBLOCK_FADE_MS,
-        onComplete: () => this.releaseGrayscale(view, cm),
-      });
-    }
-  }
-
-  /** Quita el filtro de la ficha (libera el framebuffer) al desbloquearse. */
-  private releaseGrayscale(view: TileView, cm: Phaser.Display.ColorMatrix): void {
-    if (view.grayscale !== cm) return;
-    view.container.filters?.internal.clear();
+  /** Quita el filtro del contenido al terminar de desbloquearse (libera framebuffers). */
+  private releaseGrayscale(view: TileView): void {
+    if (view.grayscale === null || view.blocked) return;
+    for (const obj of view.content) obj.filters?.internal.clear();
     view.grayscale = null;
   }
 
-  /** Transición de la capa oscura de respaldo (cuando no hay filtros de gris). */
-  private tweenOverlay(view: TileView, target: number): void {
-    this.tweens.killTweensOf(view.overlay);
+  /** Lleva `blockFx.t` a 0 o 1: directo en la primera pintada, si no con tween. */
+  private tweenBlock(view: TileView, target: 0 | 1): void {
+    this.tweens.killTweensOf(view.blockFx);
     if (this.initialPaint) {
-      view.overlay.setAlpha(target);
-    } else {
-      this.tweens.add({
-        targets: view.overlay,
-        alpha: target,
-        duration: UNBLOCK_FADE_MS,
-      });
+      view.blockFx.t = target;
+      this.paintBlockFx(view);
+      if (target === 0) this.releaseGrayscale(view);
+      return;
+    }
+    this.tweens.add({
+      targets: view.blockFx,
+      t: target,
+      duration: UNBLOCK_FADE_MS,
+      onUpdate: () => this.paintBlockFx(view),
+      onComplete: () => {
+        this.paintBlockFx(view); // asegura el valor final exacto
+        if (target === 0) this.releaseGrayscale(view);
+      },
+    });
+  }
+
+  /** Pinta el nivel de bloqueo actual (`blockFx.t`) según el modo activo. */
+  private paintBlockFx(view: TileView): void {
+    const t = view.blockFx.t;
+    if (view.grayscale !== null) {
+      // Con filtro: gris en el contenido; cara y canto (colores planos) a su gris exacto.
+      for (const cm of view.grayscale) cm.alpha = t;
+      view.face.setFillStyle(lerpColor(view.faceColor, grayOf(view.faceColor), t));
+      view.base.setFillStyle(lerpColor(view.edgeColor, grayOf(view.edgeColor), t));
+      return;
+    }
+    // Respaldo sin filtro: capa oscura ~65 % y tinte gris oscuro en el ícono.
+    view.overlay.setAlpha(BLOCKED_OVERLAY_ALPHA * t);
+    if (view.iconImage !== null) {
+      if (t === 0) view.iconImage.clearTint();
+      else view.iconImage.setTint(lerpColor(0xffffff, BLOCKED_ICON_TINT, t));
     }
   }
 
@@ -667,6 +700,12 @@ export class LevelScene extends Phaser.Scene {
       const view = this.views[slot];
       if (view === undefined) continue;
       view.removed = true;
+      // Una ficha recién liberada puede seguir con la transición de desbloqueo:
+      // se corta y se quita el filtro antes de encogerla.
+      this.tweens.killTweensOf(view.blockFx);
+      view.blockFx.t = 0;
+      this.paintBlockFx(view);
+      this.releaseGrayscale(view);
       this.tweens.add({
         targets: view.container,
         scaleX: 0,

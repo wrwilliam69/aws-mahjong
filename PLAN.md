@@ -316,7 +316,7 @@ Problema: el tablero se lee como una sola capa plana: es difícil distinguir los
 
 **Haz:**
 1. **Pisos:** cada capa `z` se dibuja con corrimiento **arriba-izquierda** (`LAYER_OFFSET_X = -6`, `LAYER_OFFSET_Y = -7`) y cada ficha proyecta una sombra abajo-derecha (`CAST_SHADOW_X/Y`, alpha 0.30) que oscurece las fichas de capas inferiores; al apilarse, más capas ⇒ sombra más fuerte. La zona visible (cara no tapada por fichas superiores) coincide con la zona que busca el dedo: `topSlotAt` sigue eligiendo la ficha **más alta** cuyo rectángulo contiene el punto (§3.4), y el `boardLayout` reserva el margen del corrimiento para que nada salga del lienzo.
-2. **Fichas bloqueadas en escala de grises:** revisado en los tipos instalados de Phaser 4; **sí** hay filtro por Game Object (`GameObject.enableFilters()` → `filters.internal.addColorMatrix().colorMatrix.grayscale(1)`, WebGL). Se aplica solo a las fichas bloqueadas, con `focusFiltersOverride` para que el framebuffer sea del tamaño de la ficha (no de toda la pantalla) y con `colorMatrix.alpha` para la transición de desbloqueo (~150 ms). Si el renderer no soporta filtros (Canvas), se usa el respaldo de la tarea: capa oscura al **~65 %**.
+2. **Fichas bloqueadas en escala de grises:** revisado en los tipos instalados de Phaser 4; **sí** hay filtro por Game Object (`GameObject.enableFilters()` → `filters.internal.addColorMatrix().colorMatrix.grayscale(1)`, WebGL). Se aplica solo a las fichas bloqueadas, con `focusFiltersOverride` para que el framebuffer sea del tamaño de la ficha (no de toda la pantalla) y con `colorMatrix.alpha` para la transición de desbloqueo (~150 ms). Si el renderer no soporta filtros (Canvas), se usa el respaldo de la tarea: capa oscura al **~65 %**. *(Corregido en la Tarea 13.1: el filtro sobre el Container dibujaba la ficha dos veces; ahora va solo en el contenido de la cara.)*
 3. **Tocar una ficha bloqueada:** además del temblor, la tarjeta de abajo muestra "Esta ficha está bloqueada: tiene otra encima o los dos lados ocupados." (`ui.showBlockedTileHint()`).
 
 **No se toca:** las reglas del juego ni `src/core` (no hizo falta ninguna función pura nueva: el área de toque ya coincidía con el área visible según §3.4).
@@ -350,6 +350,24 @@ Problema: el tablero se lee como una sola capa plana: es difícil distinguir los
 6. Guardado: en localStorage con la clave "aws-mahjong:v1", todo con try/catch. Por nivel guarda las mejores estrellas, mejores puntos y mejor tiempo (cada récord por separado). Si localStorage falla o está vacío, el juego funciona igual (solo nivel 1 abierto). La lógica de leer/combinar récords y calcular desbloqueos va en funciones puras con pruebas.
 
 7. Verifica en 360 px y en PC: se pueden jugar los 6 niveles seguidos y el progreso se mantiene al recargar la página. Corre npm test y npm run build. Responde con el resumen y DETENTE. No hagas git commit ni push.
+
+---
+
+### [x] Tarea 13.1 — Bug visual del filtro de grises
+
+Bug confirmado en el navegador: con el filtro de escala de grises de la Tarea 12.2, cada ficha bloqueada se dibujaba **dos veces**: la ficha real vacía en su sitio y una copia gris desplazada arriba-izquierda (a veces encima de la barra superior).
+
+**Causa:** el filtro estaba en el `Container` de la ficha. Un Container no tiene tamaño propio, así que Phaser 4 activa `filtersFocusContext` (enfoca el filtro en todo el lienzo) y, junto con `focusFiltersOverride`, dibujaba el resultado en coordenadas de pantalla en vez de las de la ficha.
+
+**Hecho** (`src/scenes/LevelScene.ts`):
+1. Constante `USE_GRAYSCALE_FILTER` (queda en `true`).
+2. **Con filtro:** el filtro nunca va en el Container. Va solo en el contenido de la cara (imagen del ícono o texto), con `filters.internal`: según los tipos de Phaser 4, la lista interna trabaja en el espacio local del objeto y la externa en el del padre. La cara y el canto, que son colores planos, se pasan a su gris exacto sin filtro (promedio RGB, igual que `ColorMatrix.grayscale(1)`). La ficha se dibuja una sola vez y en su posición. El filtro se quita al terminar de desbloquearse.
+3. **Respaldo** (`USE_GRAYSCALE_FILTER = false`, o renderer Canvas): sin ningún filtro, capa oscura al ~65 % y tinte gris oscuro (`BLOCKED_ICON_TINT`) en el ícono SVG.
+4. Una sola transición de ~150 ms (`blockFx.t` de 0 a 1) para los dos modos. Al emparejar una ficha, se corta su transición y se quita el filtro antes de encogerla.
+
+**No se toca:** las reglas ni `src/core`.
+
+**Lista cuando:** en la vista de celular las bloqueadas se ven grises, una sola vez y en su sitio, y al desbloquearse recuperan el color; con `USE_GRAYSCALE_FILTER = false` se ven oscuras sin filtro; `npm test` + `npm run build` pasan.
 
 ---
 
