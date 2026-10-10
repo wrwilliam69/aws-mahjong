@@ -4,6 +4,7 @@ import { generateBoard } from '../core/generator';
 import { TIER_DIST_WEIGHTS, type TierConfig } from '../core/peel';
 import { makeRng } from '../core/rng';
 import { ALL_TEMPLATES } from '../data/layouts';
+import { onQuestion } from '../ui/question';
 import type { LevelSceneData } from './LevelScene';
 
 /**
@@ -19,7 +20,7 @@ function buildDemoLevel(): LevelSceneData {
     .map((s) => s.id);
   const cfg: TierConfig = { tier: 3, distWeights: TIER_DIST_WEIGHTS[3] };
   const setup = generateBoard(template, services, cfg, makeRng('level-demo'));
-  return { setup, cfg };
+  return { setup, cfg, onQuestion };
 }
 
 export class TitleScene extends Phaser.Scene {

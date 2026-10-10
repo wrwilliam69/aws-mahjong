@@ -10,11 +10,15 @@ import type { TileSpec } from '../core/assign';
 import { catalog, tileLinesOf, type Category, type Service } from '../core/content';
 import { isFree } from '../core/geometry';
 import type { BoardSetup } from '../core/generator';
-import iconMap from '../data/icon-map.json';
 import { LevelRuntime } from '../core/level-runtime';
 import type { TierConfig } from '../core/peel';
 import type { Question } from '../core/questions';
+import { buildReviewData } from '../core/review';
+import { buildResults, errorLimitFor3Stars, failedServiceIds } from '../core/results';
 import { pairPoints } from '../core/scoring';
+import { isPairFree } from '../core/solve';
+import iconMap from '../data/icon-map.json';
+import * as ui from '../ui/game-ui';
 
 // Lienzo lógico 390 × 844 con Scale.FIT (§6). En una pantalla real de 360 px el
 // factor es 360/390 ≈ 0,923, así que 15 px lógicos ≈ 13,8 px reales: por encima
@@ -22,9 +26,20 @@ import { pairPoints } from '../core/scoring';
 const MIN_NAME_FONT = 15;
 
 const TOP_BAR_HEIGHT = 56;
+// Franja inferior que reserva la tarjeta de repaso: se comparte con la tarjeta
+// HTML vía src/ui/layout.ts (Tarea 12.1) para que ambas queden en fase.
+const REVIEW_STRIP_RATIO = ui.CARD_HEIGHT_RATIO;
 const BOARD_MARGIN = 6;
-const LAYER_OFFSET_X = 5;
+// Tarea 12.2: corrimiento de capa hacia arriba-izquierda, para que el canto
+// (base) de la capa de arriba se asiente sobre la de abajo y se lean los pisos.
+const LAYER_OFFSET_X = -6;
 const LAYER_OFFSET_Y = -7;
+// Sombra proyectada de cada ficha hacia abajo-derecha (opuesto al corrimiento):
+// asoma bajo la cara y oscurece las fichas de las capas inferiores; al apilarse
+// capas la sombra se acumula (más fuerte cuanto más capas haya).
+const CAST_SHADOW_X = 10;
+const CAST_SHADOW_Y = 12;
+const CAST_SHADOW_ALPHA = 0.3;
 const TILE_MAX_FONT = 22;
 const NAME_BG = 0xf3ecdc;
 const NAME_TEXT = '#241f18';
@@ -33,10 +48,13 @@ const SELECTED_STROKE = 0x00e5ff;
 const ICON_FILL_RATIO = 0.75;
 /** Rasterizado del SVG al doble del tamaño dibujado, para que se vea nítido. */
 const ICON_RASTER_MULT = 2;
-/** Capa oscura común de las fichas bloqueadas (las libres van a todo color). */
-const BLOCKED_OVERLAY_ALPHA = 0.5;
-/** Transición al quitar la capa cuando una ficha se desbloquea. */
+/** Respaldo si el renderer no tiene filtros por Game Object (Canvas): capa
+ * oscura al ~65 %, como pide la Tarea 12.2 (antes era 50 %). */
+const BLOCKED_OVERLAY_ALPHA = 0.65;
+/** Transición al desbloquear una ficha (quitar el gris o la capa oscura). */
 const UNBLOCK_FADE_MS = 150;
+/** Borde extra del framebuffer del filtro de grises de cada ficha, en píxeles. */
+const FILTER_PAD = 28;
 
 export interface BoardLayout {
   unit: number;
@@ -50,11 +68,9 @@ export interface LevelSceneData {
   cfg: TierConfig;
   /**
    * Resuelve la pregunta "¿Para qué sirve?" y devuelve el índice elegido.
-   * Puede ser síncrono o asíncrono (la ventana HTML de la Tarea 12 será asíncrona).
-   * TODO Tarea 12: reemplazar el valor por defecto (aviso provisional) por la
-   * ventana HTML de la pregunta; la escena no necesita cambiar.
+   * Abre la ventana HTML de `src/ui/question.ts` (Tarea 12).
    */
-  onQuestion?: (question: Question) => number | Promise<number>;
+  onQuestion: (question: Question) => Promise<number>;
 }
 
 interface TileView {
@@ -68,8 +84,12 @@ interface TileView {
   halfH: number;
   container: Phaser.GameObjects.Container;
   face: Phaser.GameObjects.Rectangle;
-  /** Capa negra semitransparente de las fichas bloqueadas. */
+  /** Sombra proyectada abajo-derecha hacia las fichas de las capas inferiores. */
+  shadow: Phaser.GameObjects.Rectangle;
+  /** Capa negra semitransparente (respaldo cuando no hay filtros de gris). */
   overlay: Phaser.GameObjects.Rectangle;
+  /** Matriz del filtro de escala de grises; null si la ficha está libre o sin filtros. */
+  grayscale: Phaser.Display.ColorMatrix | null;
   blocked: boolean;
   removed: boolean;
 }
@@ -99,15 +119,19 @@ function formatTime(ms: number): string {
 }
 
 export class LevelScene extends Phaser.Scene {
+  /** Datos con los que arrancó la escena; se reutilizan para "Reintentar". */
+  private levelData!: LevelSceneData;
   private setup!: BoardSetup;
   private rt!: LevelRuntime;
-  private onQuestion!: (question: Question) => number | Promise<number>;
+  private onQuestion!: (question: Question) => Promise<number>;
 
   private views: TileView[] = [];
   private score = 0;
   private finished = false;
   /** En la primera pasada la capa de bloqueo se pinta directa, sin transición. */
   private initialPaint = true;
+  /** ¿El renderer soporta filtros por Game Object (WebGL)? Se descubre al bloquear. */
+  private filtersAvailable = false;
 
   private layout!: BoardLayout;
   /** Servicios del tablero con ícono en el mapa: solo se piden esos archivos. */
@@ -117,7 +141,6 @@ export class LevelScene extends Phaser.Scene {
 
   private scoreText!: Phaser.GameObjects.Text;
   private timeText!: Phaser.GameObjects.Text;
-  private toast: Phaser.GameObjects.Text | null = null;
   private lastShownSeconds = -1;
 
   private serviceById = new Map<string, Service>();
@@ -128,15 +151,16 @@ export class LevelScene extends Phaser.Scene {
   }
 
   init(data: LevelSceneData): void {
+    this.levelData = data;
     this.setup = data.setup;
     this.rt = new LevelRuntime(data.setup, data.cfg);
-    this.onQuestion = data.onQuestion ?? this.defaultOnQuestion;
+    this.onQuestion = data.onQuestion;
 
     this.views = [];
     this.score = 0;
     this.finished = false;
     this.initialPaint = true;
-    this.toast = null;
+    this.filtersAvailable = false;
     this.lastShownSeconds = -1;
     this.failedIconTextures = new Set();
     this.serviceById = new Map(catalog.services.map((s) => [s.id, s]));
@@ -168,6 +192,7 @@ export class LevelScene extends Phaser.Scene {
   create(): void {
     this.buildHud();
     this.buildTiles();
+    ui.showTutorial();
     this.input.on('pointerdown', this.onPointerDown, this);
   }
 
@@ -212,13 +237,24 @@ export class LevelScene extends Phaser.Scene {
     const slots = this.setup.slots;
     let maxX = 0;
     let maxY = 0;
-    for (const [x, y] of slots) {
+    let maxZ = 0;
+    for (const [x, y, z] of slots) {
       if (x > maxX) maxX = x;
       if (y > maxY) maxY = y;
+      if (z > maxZ) maxZ = z;
     }
 
-    const availW = this.scale.width - 2 * BOARD_MARGIN;
-    const availH = this.scale.height - TOP_BAR_HEIGHT - 2 * BOARD_MARGIN;
+    // Se reserva la franja inferior para la tarjeta de repaso: la geometría de
+    // la Fase 1 es limitada por el ancho (máx. 4 columnas), así que restar la
+    // franja no encoge las fichas ni baja el tamaño mínimo de letra.
+    const reviewStripH = Math.round(this.scale.height * REVIEW_STRIP_RATIO);
+    // La capa superior se corre arriba-izquierda: se reserva ese margen para que
+    // ninguna ficha salga del lienzo (Tarea 12.2).
+    const stackX = maxZ * Math.abs(LAYER_OFFSET_X);
+    const stackY = maxZ * Math.abs(LAYER_OFFSET_Y);
+    const availW = this.scale.width - 2 * BOARD_MARGIN - stackX;
+    const availH =
+      this.scale.height - TOP_BAR_HEIGHT - reviewStripH - 2 * BOARD_MARGIN - stackY;
     // `unit` es media ficha en píxeles: la ficha ocupa [x, x+2) medias unidades.
     const unit = Math.min(availW / (maxX + 2), availH / (maxY + 2));
     const boardW = (maxX + 2) * unit;
@@ -299,12 +335,17 @@ export class LevelScene extends Phaser.Scene {
       edgeColor = darken(faceColor, 0.4);
     }
 
+    // Sombra proyectada hacia abajo-derecha, detrás de la cara: asoma bajo el
+    // canto y oscurece las fichas de capas inferiores o el fondo (Tarea 12.2).
+    const shadow = this.add
+      .rectangle(CAST_SHADOW_X, CAST_SHADOW_Y, tileSize, tileSize, 0x000000, CAST_SHADOW_ALPHA)
+      .setRounded(radius);
     const base = this.add
       .rectangle(tileSize * 0.06, tileSize * 0.08, tileSize, tileSize, edgeColor)
       .setRounded(radius);
     const face = this.add.rectangle(0, 0, tileSize, tileSize, faceColor).setRounded(radius);
 
-    const children: Phaser.GameObjects.GameObject[] = [base, face];
+    const children: Phaser.GameObjects.GameObject[] = [shadow, base, face];
     if (iconReady) {
       children.push(this.makeIconImage(tile.serviceId, tileSize));
     } else if (tile.face === 'icon') {
@@ -332,7 +373,9 @@ export class LevelScene extends Phaser.Scene {
       halfH: tileSize / 2,
       container,
       face,
+      shadow,
       overlay,
+      grayscale: null,
       blocked: false,
       removed: false,
     };
@@ -397,25 +440,12 @@ export class LevelScene extends Phaser.Scene {
 
   // --- Estado visual -------------------------------------------------------
 
-  /** Refresca la capa de bloqueo (con transición) y el resaltado de la seleccionada. */
+  /** Refresca el gris de las bloqueadas (con transición) y el resaltado. */
   private refreshTiles(): void {
     for (const view of this.views) {
       if (view.removed) continue;
       const blocked = !isFree(this.rt.g, this.rt.present, view.slot);
-      if (view.blocked !== blocked) {
-        view.blocked = blocked;
-        const target = blocked ? BLOCKED_OVERLAY_ALPHA : 0;
-        if (this.initialPaint) {
-          view.overlay.setAlpha(target);
-        } else {
-          this.tweens.killTweensOf(view.overlay);
-          this.tweens.add({
-            targets: view.overlay,
-            alpha: target,
-            duration: UNBLOCK_FADE_MS,
-          });
-        }
-      }
+      this.applyBlockedVisual(view, blocked);
       if (this.rt.selected === view.slot) {
         view.face.setStrokeStyle(4, SELECTED_STROKE, 1);
       } else {
@@ -423,6 +453,107 @@ export class LevelScene extends Phaser.Scene {
       }
     }
     this.initialPaint = false;
+  }
+
+  // --- Fichas bloqueadas: escala de grises o respaldo oscuro -----------------
+
+  /**
+   * Aplica (o quita) el estado visual de bloqueada (§12.2). En WebGL se usa el
+   * filtro de escala de grises por Game Object de Phaser 4; si el renderer no
+   * lo soporta (Canvas), se usa la capa oscura de respaldo al ~65 %.
+   */
+  private applyBlockedVisual(view: TileView, blocked: boolean): void {
+    if (view.blocked === blocked) return;
+    view.blocked = blocked;
+    if (blocked) {
+      if (this.enableFiltersOnce(view)) {
+        const cm = this.ensureGrayscale(view);
+        if (cm !== null) {
+          this.tweenGrayscale(view, cm, 1);
+          return;
+        }
+      }
+      this.tweenOverlay(view, BLOCKED_OVERLAY_ALPHA);
+    } else if (view.grayscale !== null) {
+      this.tweenGrayscale(view, view.grayscale, 0);
+    } else {
+      this.tweenOverlay(view, 0);
+    }
+  }
+
+  /** Habilita los filtros del contenedor la primera vez; false si no los soporta. */
+  private enableFiltersOnce(view: TileView): boolean {
+    if (this.filtersAvailable) return true;
+    view.container.enableFilters();
+    this.filtersAvailable = view.container.filters !== null;
+    return this.filtersAvailable;
+  }
+
+  /** Crea el filtro de grises de la ficha; devuelve su matriz o null sin filtros. */
+  private ensureGrayscale(view: TileView): Phaser.Display.ColorMatrix | null {
+    if (view.grayscale !== null) return view.grayscale;
+    const filters = view.container.filters;
+    if (filters === null) return null;
+    // Framebuffer del filtro del tamaño de la ficha (no de toda la pantalla).
+    const size = view.halfW * 2 + 2 * FILTER_PAD;
+    view.container.focusFiltersOverride(size / 2, size / 2, size, size);
+    const ctrl = filters.internal.addColorMatrix();
+    ctrl.colorMatrix.grayscale(1);
+    ctrl.colorMatrix.alpha = 0;
+    view.grayscale = ctrl.colorMatrix;
+    return view.grayscale;
+  }
+
+  /**
+   * Transición del gris: 1 = escala de grises, 0 = color normal. En la primera
+   * pintada va directo; al desbloquear, al terminar se libera el filtro.
+   */
+  private tweenGrayscale(
+    view: TileView,
+    cm: Phaser.Display.ColorMatrix,
+    target: number,
+  ): void {
+    this.tweens.killTweensOf(cm);
+    if (target === 1) {
+      if (this.initialPaint) {
+        cm.alpha = 1;
+      } else {
+        this.tweens.add({ targets: cm, alpha: 1, duration: UNBLOCK_FADE_MS });
+      }
+      return;
+    }
+    if (this.initialPaint) {
+      cm.alpha = 0;
+      this.releaseGrayscale(view, cm);
+    } else {
+      this.tweens.add({
+        targets: cm,
+        alpha: 0,
+        duration: UNBLOCK_FADE_MS,
+        onComplete: () => this.releaseGrayscale(view, cm),
+      });
+    }
+  }
+
+  /** Quita el filtro de la ficha (libera el framebuffer) al desbloquearse. */
+  private releaseGrayscale(view: TileView, cm: Phaser.Display.ColorMatrix): void {
+    if (view.grayscale !== cm) return;
+    view.container.filters?.internal.clear();
+    view.grayscale = null;
+  }
+
+  /** Transición de la capa oscura de respaldo (cuando no hay filtros de gris). */
+  private tweenOverlay(view: TileView, target: number): void {
+    this.tweens.killTweensOf(view.overlay);
+    if (this.initialPaint) {
+      view.overlay.setAlpha(target);
+    } else {
+      this.tweens.add({
+        targets: view.overlay,
+        alpha: target,
+        duration: UNBLOCK_FADE_MS,
+      });
+    }
   }
 
   // --- Entrada -------------------------------------------------------------
@@ -450,6 +581,17 @@ export class LevelScene extends Phaser.Scene {
     return bestSlot;
   }
 
+  /**
+   * Aviso de la Tarea 12.1: si la ficha seleccionada está libre pero su pareja
+   * (mismo servicio, cara contraria) está bloqueada, la tarjeta lo explica.
+   * Solo se llama con fichas libres (resultados 'select' y 'switch').
+   */
+  private showBlockedPairHint(slot: number): void {
+    if (!isPairFree(this.rt.g, this.setup.tiles, this.rt.present, slot)) {
+      ui.showBlockedPairHint();
+    }
+  }
+
   private handleTap(slot: number): void {
     const result = this.rt.tap(slot);
     switch (result.type) {
@@ -457,10 +599,17 @@ export class LevelScene extends Phaser.Scene {
         return;
       case 'blocked':
         this.shake(result.slot);
+        ui.showBlockedTileHint();
         return;
       case 'select':
+        this.showBlockedPairHint(result.slot);
+        this.refreshTiles();
+        return;
       case 'deselect':
+        this.refreshTiles();
+        return;
       case 'switch':
+        this.showBlockedPairHint(result.slot);
         this.refreshTiles();
         return;
       case 'wrong':
@@ -515,88 +664,46 @@ export class LevelScene extends Phaser.Scene {
 
   // --- Pregunta ------------------------------------------------------------
 
-  /**
-   * Aviso provisional que responde solo la opción correcta tras una pausa breve.
-   * TODO Tarea 12: sustituir por la ventana HTML "¿Para qué sirve {name}?".
-   */
-  private defaultOnQuestion = (question: Question): Promise<number> => {
-    const service = this.serviceById.get(question.serviceId);
-    const name = service?.name ?? question.serviceId;
-    this.showToast(`¿Para qué sirve ${name}? (provisional: se responde sola)`);
-    return new Promise<number>((resolve) => {
-      this.time.delayedCall(900, () => resolve(question.correctIndex));
-    });
-  };
-
   private async askQuestion(question: Question, a: number, b: number): Promise<void> {
-    let chosen = question.correctIndex;
-    try {
-      chosen = await this.onQuestion(question);
-    } catch {
-      chosen = question.correctIndex;
-    }
+    const chosen = await this.onQuestion(question);
     const answer = this.rt.answer(chosen);
     if (answer === null) return;
 
     const zMax = Math.max(this.setup.slots[a][2], this.setup.slots[b][2]);
-    const points = pairPoints(zMax, answer.correct);
-    this.score += points;
+    this.score += pairPoints(zMax, answer.correct);
     this.scoreText.setText(`Puntos: ${this.score}`);
-    this.showToast(answer.correct ? `¡Correcto! +${points}` : 'Respuesta incorrecta');
+
+    // La tarjeta de repaso se actualiza después de cada respuesta (§9.2).
+    const service = this.serviceById.get(answer.serviceId);
+    if (service === undefined) {
+      throw new Error(`LevelScene: el servicio "${answer.serviceId}" no está en el catálogo`);
+    }
+    ui.showReview(
+      buildReviewData(
+        service,
+        this.categoryById.get(service.category),
+        answer.correct,
+        hasIcon(service.id),
+      ),
+    );
 
     if (this.rt.isComplete()) this.onLevelComplete();
   }
 
   private onLevelComplete(): void {
     this.finished = true;
-    const centerX = this.scale.width / 2;
-    const centerY = this.scale.height / 2;
-    this.add
-      .rectangle(centerX, centerY, this.scale.width, this.scale.height, 0x000000, 0.6)
-      .setDepth(100000);
-    this.add
-      .text(
-        centerX,
-        centerY,
-        `¡Nivel completado!\n${this.score} puntos · ${formatTime(this.rt.boardTimeMs)}`,
-        {
-          fontFamily: 'Arial, sans-serif',
-          fontSize: '26px',
-          color: '#ffffff',
-          align: 'center',
-          fontStyle: 'bold',
-        },
-      )
-      .setOrigin(0.5)
-      .setDepth(100001);
-  }
-
-  // --- Avisos --------------------------------------------------------------
-
-  private showToast(message: string): void {
-    if (this.toast !== null) this.toast.destroy();
-    const text = this.add
-      .text(this.scale.width / 2, TOP_BAR_HEIGHT + 10, message, {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '16px',
-        color: '#ffffff',
-        backgroundColor: '#101820',
-        padding: { x: 10, y: 6 },
-        align: 'center',
-        wordWrap: { width: this.scale.width - 24 },
-      })
-      .setOrigin(0.5, 0)
-      .setDepth(95000);
-    this.toast = text;
-    this.tweens.add({
-      targets: text,
-      alpha: 0,
-      delay: 900,
-      duration: 350,
-      onComplete: () => {
-        if (this.toast === text) this.toast = null;
-        text.destroy();
-      },
+    const results = buildResults({
+      setup: this.setup,
+      points: this.score,
+      boardTimeMs: this.rt.boardTimeMs,
+      // Fase 1: sin memoria por servicio, todos los errores cuentan (§11.3).
+      errors: this.rt.errors.pair + this.rt.errors.answer,
+      failedServiceIds: failedServiceIds(this.rt.perService),
+      newServices: 0,
+      E3: errorLimitFor3Stars(this.setup.tier),
+    });
+    ui.showResults(results, () => {
+      this.scene.restart(this.levelData);
     });
   }
 }

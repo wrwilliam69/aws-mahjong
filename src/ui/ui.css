@@ -1,0 +1,370 @@
+/* UI en HTML sobre el canvas (Tareas 12 y 12.1 del PLAN.md): marco del juego,
+   pregunta, tarjeta de repaso y resultados. Todo vive dentro de #game-frame y
+   escala con unidades cqw (1cqw = 1 % del ancho del marco). Bases para un marco
+   de 390 px de ancho: texto de la tarjeta 15, botones de al menos 48 de alto
+   con texto 16, título de la pregunta 20. */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #1a1a2e;
+  font-family: Arial, sans-serif;
+}
+
+/* Marco del juego: proporción 390:844, centrado en la ventana, nunca más ancho
+   ni más alto que ella. Fuera del marco se ve el fondo oscuro del juego. */
+#game-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(100vw, calc(100vh * 390 / 844));
+  width: min(100vw, calc(100dvh * 390 / 844));
+  aspect-ratio: 390 / 844;
+  transform: translate(-50%, -50%);
+  background: #1a1a2e;
+  overflow: hidden;
+  container-type: size;
+}
+
+/* Capas HTML: absolutas dentro del marco, nunca fijas a la ventana. Se mantienen
+   por encima del canvas; los overlays se activan con pointer-events: auto. */
+#game-ui {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  line-height: 1.35;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tarjeta de repaso: ocupa la franja inferior que reserva el tablero  */
+/* (`--card-height-ratio`, la misma constante de src/ui/layout.ts).    */
+/* Esquinas superiores redondeadas, padding interno y scroll interno.  */
+/* ------------------------------------------------------------------ */
+.review-card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--card-height-ratio, 0.28) * 100%);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: calc(100cqw * 4 / 390);
+  padding: calc(100cqw * 8 / 390) calc(100cqw * 14 / 390);
+  background: #0d1b2a;
+  color: #ffffff;
+  border-top: 2px solid #2f3b4b;
+  border-radius: calc(100cqw * 14 / 390) calc(100cqw * 14 / 390) 0 0;
+  font-size: calc(100cqw * 15 / 390);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.review-card__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.review-card__head {
+  display: flex;
+  align-items: center;
+  gap: calc(100cqw * 8 / 390);
+  font-size: calc(100cqw * 16 / 390);
+  font-weight: bold;
+  flex-wrap: wrap;
+}
+
+.review-card__tutorial {
+  margin: 0;
+  font-size: calc(100cqw * 15 / 390);
+}
+
+.review-card__hint {
+  margin: 0;
+  font-size: calc(100cqw * 15 / 390);
+}
+
+.review-card__main {
+  margin: 2px 0;
+  font-weight: bold;
+  font-size: calc(100cqw * 15 / 390);
+}
+
+.review-card__text {
+  margin: 2px 0;
+  font-size: calc(100cqw * 15 / 390);
+}
+
+.review-card__meta {
+  margin: 2px 0;
+  font-size: calc(100cqw * 15 / 390);
+  color: #b9c4d1;
+  white-space: pre-line;
+}
+
+.review-icon {
+  width: calc(100cqw * 34 / 390);
+  height: calc(100cqw * 34 / 390);
+  flex: none;
+  border-radius: calc(100cqw * 6 / 390);
+  object-fit: contain;
+  background-size: cover;
+}
+
+.review-icon--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: bold;
+  font-size: calc(100cqw * 14 / 390);
+}
+
+/* ------------------------------------------------------------------ */
+/* Pregunta "¿para qué sirve?": ventana centrada sobre la zona del     */
+/* tablero (sobre la franja de la tarjeta). Caben siempre: max-height  */
+/* relativo al marco, scroll interno y el botón "Entendido" fijo.      */
+/* ------------------------------------------------------------------ */
+.question {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--card-height-ratio, 0.28) * 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(100cqw * 16 / 390);
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+.question__dialog {
+  width: 100%;
+  max-width: calc(100cqw * 360 / 390);
+  max-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: calc(100cqw * 10 / 390);
+  background: #0d1b2a;
+  border: 1px solid #2f3b4b;
+  border-radius: calc(100cqw * 14 / 390);
+  padding: calc(100cqw * 16 / 390);
+}
+
+.question__head {
+  display: flex;
+  align-items: center;
+  gap: calc(100cqw * 10 / 390);
+}
+
+.question__title {
+  font-size: calc(100cqw * 20 / 390);
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.question__body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(100cqw * 10 / 390);
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.question__footer {
+  display: flex;
+  flex: none;
+}
+
+.question__option,
+.question__entendido {
+  min-height: calc(100cqw * 48 / 390);
+  font-size: calc(100cqw * 16 / 390);
+  border-radius: calc(100cqw * 10 / 390);
+  padding: calc(100cqw * 10 / 390) calc(100cqw * 12 / 390);
+  text-align: left;
+  cursor: pointer;
+  color: #ffffff;
+  border: 2px solid #2f3b4b;
+  background: #16202e;
+  font-family: inherit;
+}
+
+.question__option:not(:disabled):active {
+  background: #1e2c3d;
+}
+
+.question__option.correct {
+  background: #2f9e44;
+  border-color: #2f9e44;
+}
+
+.question__option.wrong {
+  background: #c92a2a;
+  border-color: #c92a2a;
+}
+
+.question__option:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.question__explanation {
+  margin: 0;
+  font-size: calc(100cqw * 15 / 390);
+  color: #ffffff;
+  white-space: pre-line;
+}
+
+.question__entendido {
+  width: 100%;
+  text-align: center;
+  font-weight: bold;
+  background: #2f9e44;
+  border-color: #2f9e44;
+}
+
+.question__entendido:active {
+  background: #267a37;
+}
+
+/* ------------------------------------------------------------------ */
+/* Resultados del nivel: caja centrada en el marco, scroll interno si  */
+/* el contenido no cabe y "Reintentar" siempre visible al pie.         */
+/* ------------------------------------------------------------------ */
+.results {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(100cqw * 16 / 390);
+  background: rgba(0, 0, 0, 0.72);
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+.results__dialog {
+  width: 100%;
+  max-width: calc(100cqw * 360 / 390);
+  max-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: calc(100cqw * 10 / 390);
+  background: #0d1b2a;
+  border: 1px solid #2f3b4b;
+  border-radius: calc(100cqw * 14 / 390);
+  padding: calc(100cqw * 18 / 390) calc(100cqw * 16 / 390);
+  color: #ffffff;
+}
+
+.results__stars {
+  flex: none;
+  font-size: calc(100cqw * 34 / 390);
+  letter-spacing: 4px;
+  text-align: center;
+}
+
+.results__stars .dim {
+  color: #3a4a5c;
+}
+
+.results__body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(100cqw * 10 / 390);
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.results__stats {
+  margin: 0;
+  font-size: calc(100cqw * 16 / 390);
+  text-align: center;
+}
+
+.results__missed {
+  margin: 0;
+  font-size: calc(100cqw * 16 / 390);
+  text-align: center;
+  color: #ffd43b;
+}
+
+.results__fail {
+  margin: 4px 0 0;
+  font-size: calc(100cqw * 16 / 390);
+  font-weight: bold;
+}
+
+.results__failed-services {
+  display: flex;
+  flex-direction: column;
+  gap: calc(100cqw * 10 / 390);
+}
+
+.results__service {
+  display: flex;
+  flex-direction: column;
+  gap: calc(100cqw * 4 / 390);
+}
+
+.results__service-head {
+  display: flex;
+  align-items: center;
+  gap: calc(100cqw * 8 / 390);
+}
+
+.results__service-name {
+  font-size: calc(100cqw * 16 / 390);
+  font-weight: bold;
+}
+
+.results__service-fn {
+  margin: 0;
+  font-size: calc(100cqw * 15 / 390);
+  color: #e6edf5;
+}
+
+.results__fail-empty {
+  margin: 0;
+  font-size: calc(100cqw * 15 / 390);
+  color: #b9c4d1;
+}
+
+.results__footer {
+  display: flex;
+  flex: none;
+}
+
+.results__retry {
+  width: 100%;
+  min-height: calc(100cqw * 48 / 390);
+  font-size: calc(100cqw * 16 / 390);
+  font-weight: bold;
+  border-radius: calc(100cqw * 10 / 390);
+  border: 2px solid #2f9e44;
+  background: #2f9e44;
+  color: #ffffff;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.results__retry:active {
+  background: #267a37;
+}

@@ -24,6 +24,7 @@ Documentos del repo:
 5. Si algo de la tarea es ambiguo o contradice `DISENO-ALGORITMO.md`, **detente y pregunta** en vez de inventar.
 6. No instales dependencias que la tarea no pida. Si crees que hace falta una, explica por qué y pregunta.
 7. **No inventes contenido de AWS** (nombres, funciones o explicaciones de servicios). El catálogo lo entrega el usuario en `src/data/catalog.json`.
+8. Si el usuario manda una corrección o cambio sobre una tarea, actualiza el texto de esa tarea en `PLAN.md` antes de terminar, para que `PLAN.md` siempre refleje lo que realmente se construyó.
 
 ## 3. Tecnologías
 

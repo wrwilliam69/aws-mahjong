@@ -263,15 +263,65 @@ Autorizada por el usuario; no estaba en el plan.
 
 ---
 
-### [ ] Tarea 12 — Pregunta y resultados en HTML
+### [x] Tarea 12 — Pregunta, tarjeta de repaso y resultados en HTML
 
-**Lee:** §9.2 y §11.3.
+**Lee:** §9.2 y §11.3, y `AGENTS.md` §6.
+
+Regla de la tarea: **nada de información de aprendizaje desaparece sola** antes de que el jugador pueda leerla.
 
 **Haz:** en `src/ui/`, con HTML/CSS encima del canvas:
-- **Pregunta:** "¿Para qué sirve **{name}**?" con 3 botones grandes. Correcta: verde y cierre automático en 1,2 s. Incorrecta: rojo, se marca la correcta, se muestra la `explanation` y se cierra con un toque.
-- **Resultados:** estrellas, puntos, tiempo, qué criterio faltó para la siguiente estrella, y botones "Reintentar" y "Siguiente".
+- Quita el relleno provisional de la Tarea 11 (aviso + respuesta automática a los 900 ms). La escena sigue usando el callback `onQuestion`, ahora conectado a la ventana real (`src/ui/question.ts`).
+- **Pregunta:** encabezado con el ícono del servicio (SVG de `public/icons/<id>.svg` o, si no hay, cuadro de color con `iconKey`) y "¿Para qué sirve **{name}**?"; 3 botones de ≥ 48 px de alto y texto ≥ 16 px con las opciones de `buildQuestion`. El reloj se pausa mientras está abierta (ya lo hace `LevelRuntime`). Correcta: verde y cierre automático a los 1,2 s (el detalle queda en la tarjeta). Incorrecta: elegida en rojo, la correcta en verde, la `explanation` y un botón "Entendido"; la ventana no se cierra sola.
+- **Tarjeta de repaso** (nueva), fija abajo: reserva la franja inferior (~28 % del alto) y el tablero de Phaser se ajusta para caber encima sin taparse (el texto de las fichas sigue por encima de 13 px reales a 360 px). Tras cada respuesta muestra ícono, nombre, ✅/❌, `functionText`, `explanation`, el `name` de la categoría y los dominios con estas etiquetas: D1 = "Conceptos de la nube", D2 = "Seguridad y cumplimiento", D3 = "Tecnología y servicios", D4 = "Facturación, precios y soporte". Scroll interno si no cabe; texto mínimo 15 px. Se queda hasta la siguiente respuesta. Al empezar el nivel muestra el tutorial: "Toca un ícono y luego su nombre. Solo puedes tocar las fichas brillantes; las oscuras están bloqueadas." Tocar una sola ficha no cambia la tarjeta.
+- **Resultados** al vaciar el tablero: estrellas, puntos, tiempo, qué criterio faltó para la siguiente estrella (`scoring.ts`), la lista de servicios fallados y el botón "Reintentar" (reinicia el mismo tablero). El detalle de cada servicio fallado (ícono, nombre y `functionText`) se especifica en la Tarea 12.1. "Siguiente" llega con la Tarea 13.
+- Solo textos del catálogo; las etiquetas de dominios son las únicas que se agregan.
 
-**Lista cuando:** se juega un nivel completo de principio a fin, con preguntas y pantalla de resultados, en la vista de celular.
+**Pruebas:** `src/core/review.ts` y `src/core/results.ts` con funciones puras y pruebas en `tests/`.
+
+**Lista cuando:** un nivel completo se juega de principio a fin con preguntas, tarjeta y resultados, en la vista de celular, y `npm test` + `npm run build` pasan.
+
+---
+
+### [x] Tarea 12.1 — Toda la UI dentro del marco del juego
+
+**Lee:** `AGENTS.md` §6.
+
+Problema: el canvas de Phaser se escala a 390×844 centrado, pero la tarjeta de repaso (y pregunta y resultados) usaban el ancho de toda la ventana.
+
+**Haz:**
+- `index.html`: un solo contenedor `#game-frame` que contiene el canvas de Phaser Y todas las capas HTML (tarjeta/tutorial, pregunta, resultados).
+- Marco con proporción 390:844, `width: min(100vw, 100dvh * 390 / 844)`, centrado, fondo oscuro del juego fuera, sin scroll de página.
+- Phaser usa `#game-frame` como `parent` con `Scale.FIT`; el canvas ocupa exactamente el marco.
+- Las capas HTML van `absolute` dentro del marco (nunca fijas a la ventana). La tarjeta ocupa la franja que reserva `boardLayout` usando **una sola constante compartida** `CARD_HEIGHT_RATIO = 0.28` (`src/ui/layout.ts`), consumida por `LevelScene.ts` y por el CSS vía `--card-height-ratio`.
+- Textos y tamaños escalan con el marco (`container-type: size` + unidades `cqw`). Bases para 390: tarjeta 15, botones ≥48 px con texto 16, título de pregunta 20.
+- Estilo de la tarjeta igual al juego (esquinas superiores redondeadas, padding interno, scroll interno).
+- La ventana de la pregunta cabe completa en el marco: cabecera y pie fijos, cuerpo con scroll interno y "Entendido" siempre visible; centrada sobre la zona del tablero.
+
+**Correcciones adicionales (revisión de la Tarea 12.1):**
+- La ventana de la pregunta (con la `explanation` y el botón "Entendido") cabe **completa dentro del marco en los 4 tamaños** (360×740, 390×844, 768×1024 y PC 1920×1080): cabecera y pie fijos, cuerpo con scroll interno si el texto no cabe, "Entendido" siempre visible al pie y centrada sobre la zona del tablero (por encima de la franja de la tarjeta).
+- **"Servicios que fallaste"** muestra cada servicio fallado con su ícono (SVG oficial o cuadro de color + `iconKey`), su `name` y debajo su `functionText`, en orden de primera falla y sin repetidos. Si la lista no cabe, scroll interno dentro de la ventana de resultados con "Reintentar" siempre visible al pie.
+- **Aviso de pareja bloqueada:** al seleccionar una ficha libre cuya pareja (mismo servicio, cara contraria) está bloqueada, la tarjeta de abajo muestra "La pareja de esta ficha todavía está bloqueada. Retira otras fichas para liberarla." (sin decir el servicio ni dónde está la pareja). Vuelve al repaso normal tras hacer la siguiente pareja. Función pura en `src/core` (`isPairFree` y `mateSlot` en `src/core/solve.ts`) con pruebas en `tests/tile-pair.test.ts`. No cambia las reglas del juego.
+
+**No se toca:** `src/core`, salvo `failedServiceIds` (`src/core/results.ts`), que pasa a devolver los servicios fallados en orden de primera falla y sin repetidos (antes los ordenaba alfabéticamente), y la nueva `mateSlot`/`isPairFree` (`src/core/solve.ts`).
+
+**Lista cuando:** en Chrome (360×740, 390×844, tablet 768×1024 y PC 1920×1080) nada se sale del marco, la tarjeta no tapa fichas y no hay scroll de página; `npm test` + `npm run build` pasan.
+
+---
+
+### [x] Tarea 12.2 — Claridad visual de pisos y fichas bloqueadas
+
+**Lee:** §3.4 de `DISENO-ALGORITMO.md` (render y toques) y `AGENTS.md` §6.
+
+Problema: el tablero se lee como una sola capa plana: es difícil distinguir los pisos y las fichas bloqueadas apenas se distinguen de las libres.
+
+**Haz:**
+1. **Pisos:** cada capa `z` se dibuja con corrimiento **arriba-izquierda** (`LAYER_OFFSET_X = -6`, `LAYER_OFFSET_Y = -7`) y cada ficha proyecta una sombra abajo-derecha (`CAST_SHADOW_X/Y`, alpha 0.30) que oscurece las fichas de capas inferiores; al apilarse, más capas ⇒ sombra más fuerte. La zona visible (cara no tapada por fichas superiores) coincide con la zona que busca el dedo: `topSlotAt` sigue eligiendo la ficha **más alta** cuyo rectángulo contiene el punto (§3.4), y el `boardLayout` reserva el margen del corrimiento para que nada salga del lienzo.
+2. **Fichas bloqueadas en escala de grises:** revisado en los tipos instalados de Phaser 4; **sí** hay filtro por Game Object (`GameObject.enableFilters()` → `filters.internal.addColorMatrix().colorMatrix.grayscale(1)`, WebGL). Se aplica solo a las fichas bloqueadas, con `focusFiltersOverride` para que el framebuffer sea del tamaño de la ficha (no de toda la pantalla) y con `colorMatrix.alpha` para la transición de desbloqueo (~150 ms). Si el renderer no soporta filtros (Canvas), se usa el respaldo de la tarea: capa oscura al **~65 %**.
+3. **Tocar una ficha bloqueada:** además del temblor, la tarjeta de abajo muestra "Esta ficha está bloqueada: tiene otra encima o los dos lados ocupados." (`ui.showBlockedTileHint()`).
+
+**No se toca:** las reglas del juego ni `src/core` (no hizo falta ninguna función pura nueva: el área de toque ya coincidía con el área visible según §3.4).
+
+**Lista cuando:** en la vista de celular (360 px) y en PC se distinguen bien los pisos (sombra + corrimiento), las bloqueadas se ven claramente grises y tocar una bloqueada tiembla y muestra el mensaje; `npm test` + `npm run build` pasan.
 
 ---
 
