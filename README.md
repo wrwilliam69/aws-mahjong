@@ -22,4 +22,6 @@ npm run icons      # copia los íconos de AWS a public/icons/ (opcional)
 
 ## Publicación
 
-El sitio se publica en **AWS Amplify Hosting** desde la rama `main`. Amplify ejecuta `npm ci`, `npm test` y `npm run build` (ver `amplify.yml`) y sirve `dist/` desde la raíz del dominio.
+El sitio se publica en **GitHub Pages**: https://wrwilliam69.github.io/aws-mahjong/ (se actualiza en cada push a `main`; ver `.github/workflows/deploy.yml`).
+
+Íconos: AWS Architecture Icons. AWS y sus logos son marcas de Amazon.com, Inc. o sus filiales. Proyecto personal de estudio, sin relación con AWS.

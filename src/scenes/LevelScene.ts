@@ -324,7 +324,7 @@ export class LevelScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // `BASE_URL` en vez de una ruta fija a mano (Amplify sirve desde la raíz).
+    // `BASE_URL` en vez de una ruta fija a mano (GitHub Pages sirve bajo /aws-mahjong/).
     const base = import.meta.env.BASE_URL;
     for (const serviceId of this.neededIconIds) {
       this.load.svg(`icon:${serviceId}`, `${base}icons/${serviceId}.svg`, {

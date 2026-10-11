@@ -84,16 +84,18 @@ Reglas:
 
 ## 8. Íconos oficiales de AWS
 
-- El repo es privado y el sitio se publica con contraseña (uso personal de estudio). Por eso se usan los íconos oficiales del paquete AWS Architecture Icons.
-- El paquete completo vive en `iconos/` (ignorado por Git). Nunca lo subas al repo.
-- Solo se copian a `public/icons/<serviceId>.svg` los íconos de los servicios del catálogo, según `src/data/icon-map.json`.
+- El repo es **público** y el sitio se publica en **GitHub Pages** con `base: '/aws-mahjong/'`. Los íconos oficiales del paquete AWS Architecture Icons se usan con la atribución del Texto 3 y sin fines comerciales (proyecto personal de estudio). **Sí se suben al repo.**
+- Solo se copian a `public/icons/<serviceId>.svg` los íconos de los servicios del catálogo, según `src/data/icon-map.json`; ambos se quedan en el repo.
+- El paquete completo vive en `iconos/` (ignorado por Git). **Nunca lo subas al repo.**
 - No modifiques, redibujes ni combines los íconos.
 - Si falta un ícono, la ficha muestra el cuadro de color con `iconKey` como respaldo.
 - No descargues íconos de internet ni uses logos de otras marcas.
 
+**Texto 3 (atribución obligatoria, tal cual):** "Íconos: AWS Architecture Icons. AWS y sus logos son marcas de Amazon.com, Inc. o sus filiales. Proyecto personal de estudio, sin relación con AWS." Va en el menú del juego (abajo y en letra pequeña) y en `README.md`. El sitio lleva `<meta name="robots" content="noindex, nofollow">`.
+
 ## 9. Seguridad y licencias
 
-- El repo es privado, pero igual: Nunca escribas contraseñas, claves de API, tokens ni credenciales de ningún tipo.
+- El repo es **público**: nunca escribas contraseñas, claves de API, tokens ni credenciales de ningún tipo.
 - La lógica base se inspira en `ffalt/mah` (licencia MIT). **Reimplementa, no copies.** Si llegas a adaptar literalmente algún fragmento, sigue §2.1 del diseño: crea `THIRD_PARTY_NOTICES.md` y pon la cabecera de atribución en el archivo.
 
 ## 10. Comandos
@@ -105,4 +107,4 @@ npm test           # pruebas (vitest run)
 npm run build      # build de producción en dist/
 ```
 
-El sitio se publica en **AWS Amplify Hosting** (usuario y contraseña configurados en la consola por el usuario), que sirve el sitio desde la raíz del dominio, así que Vite usa `base: '/'`. `amplify.yml` no se cambia sin permiso del usuario. Nunca escribas en el repo usuarios, contraseñas, ARNs de cuenta ni credenciales de AWS.
+El sitio se publica en **GitHub Pages** en https://wrwilliam69.github.io/aws-mahjong/, desde `main` con el flujo `.github/workflows/deploy.yml` (Node 22, `npm ci`, `npm test`, `npm run build` y publica `dist/`). Vite usa `base: '/aws-mahjong/'`. Nunca escribas en el repo usuarios, contraseñas, ARNs de cuenta ni credenciales de AWS.

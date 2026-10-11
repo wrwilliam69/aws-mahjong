@@ -494,6 +494,26 @@ Combos (§11.2), repetición espaciada (§10), selección de servicios por nivel
 6. Pruebas ampliadas: `tests/practice.test.ts` (firma nueva con `memory` y `gameNumber`; `practiceWeight` con base, tope y sin estadística; con la misma semilla y las mismas estadísticas sale lo mismo; un servicio muy fallado aparece más veces que uno sin fallos en 400 semillas) y `tests/progress.test.ts` (contador, memoria, compatibilidad del guardado viejo y conservación en `mergeLevelRun`).
 7. Verificado en 360 px (línea visible bajo el botón) y en PC. `npm test` (254) y `npm run build` pasan. No se hace git commit ni push.
 
+---
+
+### [x] Tarea 17 — Publicar en GitHub Pages (gratis) con los íconos oficiales y atribución
+
+Autorizada por el usuario: el repo pasa a PÚBLICO y se publica en GitHub Pages (https://wrwilliam69.github.io/aws-mahjong/), proyecto personal de estudio, no comercial.
+
+1. **GitHub Pages:**
+   - `vite.config`: `base` vuelve a `/aws-mahjong/`.
+   - Se borra `amplify.yml`.
+   - `.github/workflows/deploy.yml`: en cada push a `main`, Node 22, `npm ci`, `npm test`, `npm run build` y publica `dist/` con las acciones oficiales (`configure-pages`, `upload-pages-artifact`, `deploy-pages`), con permisos mínimos.
+   - `public/icons/` y `src/data/icon-map.json` SE QUEDAN en el repo. `iconos/` (el paquete completo) sigue ignorado.
+2. **Atribución y discreción:**
+   - En el menú del juego, abajo y en letra pequeña: "Íconos: AWS Architecture Icons. AWS y sus logos son marcas de Amazon.com, Inc. o sus filiales. Proyecto personal de estudio, sin relación con AWS."
+   - El mismo aviso en `README.md`.
+   - En `index.html`, `<meta name="robots" content="noindex, nofollow">`.
+3. **AGENTS.md:** el repo es PÚBLICO; se publica en GitHub Pages con `base '/aws-mahjong/'`; los íconos oficiales se usan con la atribución anterior y sin fines comerciales; el paquete completo `iconos/` nunca se sube; se mantiene la prohibición de escribir credenciales. Se quitan las menciones a Amplify. `README.md`: cómo correrlo y la URL publicada.
+4. `npm test` y `npm run build` pasan. Las rutas de `dist/` empiezan por `/aws-mahjong/` y los íconos cargan con esa base.
+
+**Lista cuando:** lo anterior y la inspección de `dist/index.html` confirma la base. No se hace git commit ni push.
+
 ## Fase 3 — Pulido y retos (no empezar todavía)
 
 K candidatos y dificultad medida (§7.3), señuelos (§7.5), ajuste dinámico (§7.7), reto diario (§11.4), íconos oficiales (si los términos de AWS lo permiten), sonidos.

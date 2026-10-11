@@ -673,6 +673,15 @@ body {
   letter-spacing: 0;
 }
 
+/* Atribución de los íconos (Tarea 17): abajo del menú, en letra pequeña. */
+.menu__attribution {
+  margin: calc(100cqw * 18 / 390) calc(100cqw * 8 / 390) 0;
+  font-size: calc(100cqw * 11 / 390);
+  line-height: 1.45;
+  color: #7c8ba0;
+  text-align: center;
+}
+
 @keyframes menu-shake {
   0%,
   100% {

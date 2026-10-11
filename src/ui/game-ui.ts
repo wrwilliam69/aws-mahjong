@@ -185,6 +185,14 @@ export function showMenu(callbacks: {
   }
 
   menu.appendChild(list);
+
+  // Tarea 17: atribución de los íconos oficiales, al pie del menú y en letra
+  // pequeña (ver también README.md).
+  const attribution = document.createElement('p');
+  attribution.className = 'menu__attribution';
+  attribution.textContent =
+    'Íconos: AWS Architecture Icons. AWS y sus logos son marcas de Amazon.com, Inc. o sus filiales. Proyecto personal de estudio, sin relación con AWS.';
+  menu.appendChild(attribution);
 }
 
 /**
