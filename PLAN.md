@@ -514,6 +514,21 @@ Autorizada por el usuario: el repo pasa a PÚBLICO y se publica en GitHub Pages 
 
 **Lista cuando:** lo anterior y la inspección de `dist/index.html` confirma la base. No se hace git commit ni push.
 
+---
+
+### [x] Tarea 17.2 — Corrección del despliegue en GitHub Actions
+
+El flujo `.github/workflows/deploy.yml` fallaba en GitHub Actions en el paso `actions/configure-pages@v5` con "TypeError: error must be an instance of Error", y había un aviso de que `checkout@v4` y `setup-node@v4` estaban siendo forzadas a correr en Node.js 24. Pruebas y build pasaban; solo fallaba ese paso.
+
+**Haz:**
+1. Se quita por completo el paso `actions/configure-pages` (es opcional: Pages ya está configurado con Source = GitHub Actions en el repo).
+2. Se suben a su versión mayor más reciente, verificada en los releases oficiales y compatible con Node 24: `actions/checkout@v7`, `actions/setup-node@v7`, `actions/upload-pages-artifact@v5` y `actions/deploy-pages@v5`.
+3. El resto queda igual: `checkout`, `setup-node` con Node 22, `npm ci`, `npm test`, `npm run build`, `upload-pages-artifact` (`path: dist`) y el job `deploy` con `deploy-pages`.
+
+No se cambia nada más del proyecto.
+
+**Lista cuando:** `deploy.yml` no tiene el paso `configure-pages` y usa las versiones anteriores. No se hace git commit ni push.
+
 ## Fase 3 — Pulido y retos (no empezar todavía)
 
 K candidatos y dificultad medida (§7.3), señuelos (§7.5), ajuste dinámico (§7.7), reto diario (§11.4), íconos oficiales (si los términos de AWS lo permiten), sonidos.
