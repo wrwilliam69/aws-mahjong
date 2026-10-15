@@ -9,7 +9,9 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: 'game-frame',
   width: 390,
   height: 844,
-  backgroundColor: '#1a1a2e',
+  // Tarea 18: canvas transparente; la mesa de madera la pinta el CSS de
+  // #game-frame (gradientes), detrás del tablero y del menú.
+  transparent: true,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

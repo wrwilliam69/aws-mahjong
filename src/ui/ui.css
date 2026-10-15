@@ -10,12 +10,12 @@ body {
   padding: 0;
   height: 100%;
   overflow: hidden;
-  background: #1a1a2e;
+  background: #1b110a;
   font-family: Arial, sans-serif;
 }
 
 /* Marco del juego: proporción 390:844, centrado en la ventana, nunca más ancho
-   ni más alto que ella. Fuera del marco se ve el fondo oscuro del juego. */
+   ni más alto que ella. Fuera del marco se ve un nogal muy oscuro. */
 #game-frame {
   position: absolute;
   top: 50%;
@@ -24,7 +24,46 @@ body {
   width: min(100vw, calc(100dvh * 390 / 844));
   aspect-ratio: 390 / 844;
   transform: translate(-50%, -50%);
-  background: #1a1a2e;
+
+  /* Tarea 18: paleta madera y marfil de toda la UI (marfil de las fichas,
+     nogal de los paneles, jade y latón en los botones). */
+  --ivory: #f6eedc;
+  --ivory-soft: #ecdcbc;
+  --ivory-muted: #d6c19c;
+  --ivory-dim: #a88f6c;
+  --panel: rgba(38, 24, 14, 0.95);
+  --panel-solid: #26180e;
+  --panel-2: #3a2617;
+  --panel-press: #4b321f;
+  --panel-deep: #1c120a;
+  --line: #6e4c2f;
+  --jade: #2f7a5f;
+  --jade-press: #255f4a;
+  --ok: #3f8f45;
+  --bad: #b23e2e;
+  --bad-press: #8f3022;
+  --gold: #e6bb4f;
+  --gold-press: #d4a73c;
+  --gold-dark: #9a7224;
+  --brass: #9c7432;
+  --brass-press: #80602a;
+  --star-dim: #5c4431;
+  --backdrop: rgba(20, 11, 4, 0.6);
+  /* Mesa de madera cálida generada con gradientes (sin imágenes): viñeta, vetas
+     finas y medias a ángulos un poco distintos (para que no se vean regulares),
+     bandas anchas suaves y el tono base de arriba (más claro) a abajo. */
+  --wood:
+    radial-gradient(130% 95% at 50% 42%, rgba(0, 0, 0, 0) 55%, rgba(20, 10, 3, 0.45) 100%),
+    repeating-linear-gradient(177deg, rgba(255, 236, 205, 0.045) 0 1px, rgba(0, 0, 0, 0) 1px 6px),
+    repeating-linear-gradient(181.5deg, rgba(45, 22, 6, 0.09) 0 2px, rgba(0, 0, 0, 0) 2px 17px),
+    repeating-linear-gradient(
+      179deg,
+      rgba(255, 225, 185, 0.05) 0 9px,
+      rgba(60, 30, 8, 0.08) 9px 26px,
+      rgba(0, 0, 0, 0) 26px 47px
+    ),
+    linear-gradient(180deg, #8b5b33 0%, #774b2a 40%, #613b20 100%);
+  background: var(--wood);
   overflow: hidden;
   /* `clip` además impide que el navegador desplace el marco (p. ej. al enfocar
      un botón): con `hidden` el marco llegó a subir 4 px a mitad de partida. */
@@ -69,9 +108,9 @@ body {
   flex-direction: column;
   gap: calc(100cqw * 4 / 390);
   padding: calc(100cqw * 8 / 390) calc(100cqw * 14 / 390);
-  background: #0d1b2a;
-  color: #ffffff;
-  border-bottom: 2px solid #2f3b4b;
+  background: var(--panel);
+  color: var(--ivory);
+  border-bottom: 2px solid var(--line);
   border-radius: 0 0 calc(100cqw * 14 / 390) calc(100cqw * 14 / 390);
   font-size: calc(100cqw * 15 / 390);
   overflow: hidden;
@@ -147,7 +186,7 @@ body {
   font-size: calc(100cqw * 13 / 390);
   font-weight: normal;
   line-height: 1.25;
-  color: #9fb0c3;
+  color: var(--ivory-muted);
   overflow-wrap: anywhere;
 }
 
@@ -175,7 +214,7 @@ body {
 .review-card__meta {
   margin: 0;
   font-size: calc(100cqw * 15 / 390);
-  color: #b9c4d1;
+  color: var(--ivory-muted);
   white-space: pre-line;
 }
 
@@ -186,9 +225,9 @@ body {
   min-height: calc(100cqw * 30 / 390);
   padding: 0 calc(100cqw * 10 / 390);
   border-radius: calc(100cqw * 8 / 390);
-  border: 1px solid #2f3b4b;
-  background: #16202e;
-  color: #9fb0c3;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ivory-muted);
   font-family: inherit;
   font-size: calc(100cqw * 13 / 390);
   font-weight: bold;
@@ -197,7 +236,7 @@ body {
 }
 
 .review-card__more:active {
-  background: #1e2c3d;
+  background: var(--panel-press);
 }
 
 /* Destello del borde al actualizarse la tarjeta (Tarea 13.6, ~400 ms):
@@ -205,30 +244,30 @@ body {
 @keyframes review-card-flash-correct {
   0%,
   100% {
-    box-shadow: inset 0 0 0 3px rgba(47, 158, 68, 0);
+    box-shadow: inset 0 0 0 3px rgba(63, 143, 69, 0);
   }
   25% {
-    box-shadow: inset 0 0 0 3px rgba(47, 158, 68, 1);
+    box-shadow: inset 0 0 0 3px rgba(63, 143, 69, 1);
   }
 }
 
 @keyframes review-card-flash-wrong {
   0%,
   100% {
-    box-shadow: inset 0 0 0 3px rgba(201, 42, 42, 0);
+    box-shadow: inset 0 0 0 3px rgba(178, 62, 46, 0);
   }
   25% {
-    box-shadow: inset 0 0 0 3px rgba(201, 42, 42, 1);
+    box-shadow: inset 0 0 0 3px rgba(178, 62, 46, 1);
   }
 }
 
 @keyframes review-card-flash-notice {
   0%,
   100% {
-    box-shadow: inset 0 0 0 3px rgba(255, 212, 59, 0);
+    box-shadow: inset 0 0 0 3px rgba(230, 187, 79, 0);
   }
   25% {
-    box-shadow: inset 0 0 0 3px rgba(255, 212, 59, 1);
+    box-shadow: inset 0 0 0 3px rgba(230, 187, 79, 1);
   }
 }
 
@@ -278,7 +317,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: calc(100cqw * 16 / 390);
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(20, 11, 4, 0.55);
   pointer-events: auto;
   box-sizing: border-box;
 }
@@ -291,8 +330,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: calc(100cqw * 10 / 390);
-  background: #0d1b2a;
-  border: 1px solid #2f3b4b;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
   border-radius: calc(100cqw * 14 / 390);
   padding: calc(100cqw * 16 / 390);
 }
@@ -306,7 +345,7 @@ body {
 .question__title {
   font-size: calc(100cqw * 20 / 390);
   font-weight: bold;
-  color: #ffffff;
+  color: var(--ivory);
 }
 
 .question__body {
@@ -331,24 +370,24 @@ body {
   padding: calc(100cqw * 10 / 390) calc(100cqw * 12 / 390);
   text-align: left;
   cursor: pointer;
-  color: #ffffff;
-  border: 2px solid #2f3b4b;
-  background: #16202e;
+  color: var(--ivory);
+  border: 2px solid var(--line);
+  background: var(--panel-2);
   font-family: inherit;
 }
 
 .question__option:not(:disabled):active {
-  background: #1e2c3d;
+  background: var(--panel-press);
 }
 
 .question__option.correct {
-  background: #2f9e44;
-  border-color: #2f9e44;
+  background: var(--ok);
+  border-color: var(--ok);
 }
 
 .question__option.wrong {
-  background: #c92a2a;
-  border-color: #c92a2a;
+  background: var(--bad);
+  border-color: var(--bad);
 }
 
 .question__option:disabled {
@@ -364,7 +403,7 @@ body {
 .question__explanation {
   margin: 0;
   font-size: calc(100cqw * 15 / 390);
-  color: #ffffff;
+  color: var(--ivory);
   white-space: pre-line;
 }
 
@@ -372,12 +411,12 @@ body {
   width: 100%;
   text-align: center;
   font-weight: bold;
-  background: #2f9e44;
-  border-color: #2f9e44;
+  background: var(--jade);
+  border-color: var(--jade);
 }
 
 .question__entendido:active {
-  background: #267a37;
+  background: var(--jade-press);
 }
 
 /* ------------------------------------------------------------------ */
@@ -391,7 +430,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: calc(100cqw * 16 / 390);
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(20, 11, 4, 0.72);
   pointer-events: auto;
   box-sizing: border-box;
 }
@@ -404,11 +443,11 @@ body {
   display: flex;
   flex-direction: column;
   gap: calc(100cqw * 10 / 390);
-  background: #0d1b2a;
-  border: 1px solid #2f3b4b;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
   border-radius: calc(100cqw * 14 / 390);
   padding: calc(100cqw * 18 / 390) calc(100cqw * 16 / 390);
-  color: #ffffff;
+  color: var(--ivory);
 }
 
 .results__stars {
@@ -416,10 +455,11 @@ body {
   font-size: calc(100cqw * 34 / 390);
   letter-spacing: 4px;
   text-align: center;
+  color: var(--gold);
 }
 
 .results__stars .dim {
-  color: #3a4a5c;
+  color: var(--star-dim);
 }
 
 .results__body {
@@ -441,14 +481,14 @@ body {
   margin: 0;
   font-size: calc(100cqw * 16 / 390);
   text-align: center;
-  color: #ffd43b;
+  color: var(--gold);
 }
 
 .results__hints {
   margin: 0;
   font-size: calc(100cqw * 15 / 390);
   text-align: center;
-  color: #b9c4d1;
+  color: var(--ivory-muted);
 }
 
 .results__fail {
@@ -489,13 +529,13 @@ body {
 .results__service-fn {
   margin: 0;
   font-size: calc(100cqw * 15 / 390);
-  color: #e6edf5;
+  color: var(--ivory-soft);
 }
 
 .results__fail-empty {
   margin: 0;
   font-size: calc(100cqw * 15 / 390);
-  color: #b9c4d1;
+  color: var(--ivory-muted);
 }
 
 .results__footer {
@@ -513,33 +553,34 @@ body {
   font-size: calc(100cqw * 16 / 390);
   font-weight: bold;
   border-radius: calc(100cqw * 10 / 390);
-  border: 2px solid #2f9e44;
-  background: #2f9e44;
-  color: #ffffff;
+  border: 2px solid var(--brass);
+  background: var(--brass);
+  color: var(--ivory);
   cursor: pointer;
   font-family: inherit;
 }
 
+/* "Siguiente" en jade (acción principal), "Reintentar" en latón y "Menú" en nogal. */
 .results__next {
-  border-color: #1c7ed6;
-  background: #1c7ed6;
+  border-color: var(--jade);
+  background: var(--jade);
 }
 
 .results__next:active {
-  background: #1864ab;
+  background: var(--jade-press);
 }
 
 .results__retry:active {
-  background: #267a37;
+  background: var(--brass-press);
 }
 
 .results__menu {
-  border-color: #2f3b4b;
-  background: #16202e;
+  border-color: var(--line);
+  background: var(--panel-2);
 }
 
 .results__menu:active {
-  background: #1e2c3d;
+  background: var(--panel-press);
 }
 
 /* ------------------------------------------------------------------ */
@@ -559,8 +600,9 @@ body {
   flex-direction: column;
   box-sizing: border-box;
   padding: calc(100cqw * 24 / 390) calc(100cqw * 16 / 390);
-  background: #1a1a2e;
-  color: #ffffff;
+  /* Opaco (la misma mesa de madera): tapa la tarjeta del nivel anterior. */
+  background: var(--wood);
+  color: var(--ivory);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -569,10 +611,11 @@ body {
   margin: calc(100cqw * 10 / 390) 0 calc(100cqw * 20 / 390);
   font-size: calc(100cqw * 30 / 390);
   text-align: center;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
 }
 
 /* Botón "Práctica libre" (Tarea 13.3): arriba de la lista, solo con al menos
-   2 niveles completados. Se distingue en azul de los niveles. */
+   2 niveles completados. Se distingue en jade de los niveles. */
 .menu__practice {
   width: 100%;
   min-height: calc(100cqw * 56 / 390);
@@ -580,9 +623,9 @@ body {
   box-sizing: border-box;
   padding: calc(100cqw * 10 / 390) calc(100cqw * 12 / 390);
   border-radius: calc(100cqw * 12 / 390);
-  border: 2px solid #1c7ed6;
-  background: #1c7ed6;
-  color: #ffffff;
+  border: 2px solid var(--jade);
+  background: var(--jade);
+  color: var(--ivory);
   font-family: inherit;
   font-size: calc(100cqw * 18 / 390);
   font-weight: bold;
@@ -591,8 +634,8 @@ body {
 }
 
 .menu__practice:active {
-  background: #1864ab;
-  border-color: #1864ab;
+  background: var(--jade-press);
+  border-color: var(--jade-press);
 }
 
 /* Línea "Para repasar: N servicios" (Tarea 16): debajo del botón de Práctica
@@ -600,8 +643,9 @@ body {
 .menu__review {
   margin: calc(100cqw * -6 / 390) 0 calc(100cqw * 14 / 390);
   font-size: calc(100cqw * 14 / 390);
-  color: #b9c4d1;
+  color: var(--ivory-soft);
   text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
 .menu__list {
@@ -619,9 +663,9 @@ body {
   box-sizing: border-box;
   padding: calc(100cqw * 10 / 390) calc(100cqw * 12 / 390);
   border-radius: calc(100cqw * 12 / 390);
-  border: 2px solid #2f3b4b;
-  background: #16202e;
-  color: #ffffff;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--ivory);
   font-family: inherit;
   font-size: calc(100cqw * 16 / 390);
   text-align: left;
@@ -629,12 +673,12 @@ body {
 }
 
 .menu__row--locked {
-  opacity: 0.55;
+  opacity: 0.6;
   cursor: default;
 }
 
 .menu__row--open:active {
-  background: #1e2c3d;
+  background: var(--panel-press);
 }
 
 .menu__num {
@@ -645,8 +689,8 @@ body {
   width: calc(100cqw * 34 / 390);
   height: calc(100cqw * 34 / 390);
   border-radius: 50%;
-  background: #0d1b2a;
-  border: 2px solid #2f3b4b;
+  background: var(--panel-deep);
+  border: 2px solid var(--line);
   font-weight: bold;
   font-size: calc(100cqw * 16 / 390);
 }
@@ -661,25 +705,27 @@ body {
   flex: none;
   font-size: calc(100cqw * 16 / 390);
   letter-spacing: 2px;
-  color: #ffd43b;
+  color: var(--gold);
 }
 
 .menu__stars.dim {
-  color: #3a4a5c;
+  color: var(--star-dim);
 }
 
 .menu__lock {
-  color: #b9c4d1;
+  color: var(--ivory-muted);
   letter-spacing: 0;
 }
 
-/* Atribución de los íconos (Tarea 17): abajo del menú, en letra pequeña. */
+/* Atribución de los íconos (Tarea 17): abajo del menú, en letra pequeña. Sobre
+   la madera lleva una sombra de texto para que se lea. */
 .menu__attribution {
   margin: calc(100cqw * 18 / 390) calc(100cqw * 8 / 390) 0;
   font-size: calc(100cqw * 11 / 390);
   line-height: 1.45;
-  color: #7c8ba0;
+  color: var(--ivory-muted);
   text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 @keyframes menu-shake {
@@ -708,9 +754,9 @@ body {
   min-height: calc(100cqw * 36 / 390);
   padding: 0 calc(100cqw * 12 / 390);
   border-radius: calc(100cqw * 8 / 390);
-  border: 2px solid #2f3b4b;
-  background: #16202e;
-  color: #ffffff;
+  border: 2px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ivory);
   font-family: inherit;
   font-size: calc(100cqw * 16 / 390);
   font-weight: bold;
@@ -719,7 +765,7 @@ body {
 }
 
 .level-menu-btn:active {
-  background: #1e2c3d;
+  background: var(--panel-press);
 }
 
 /* Botón "Pista" (Tarea 15): franja libre al pie del marco, centrado. Nunca se
@@ -733,26 +779,28 @@ body {
   min-height: calc(100cqw * 40 / 390);
   padding: 0 calc(100cqw * 16 / 390);
   border-radius: calc(100cqw * 10 / 390);
-  border: 2px solid #b8860b;
-  background: #ffd43b;
-  color: #241f18;
+  border: 2px solid var(--gold-dark);
+  background: var(--gold);
+  color: var(--panel-solid);
   font-family: inherit;
   font-size: calc(100cqw * 16 / 390);
   font-weight: bold;
   cursor: pointer;
   pointer-events: auto;
+  box-shadow: 0 calc(100cqw * 3 / 390) calc(100cqw * 6 / 390) rgba(0, 0, 0, 0.35);
 }
 
 .hint-btn:not(:disabled):active {
-  background: #f2c530;
+  background: var(--gold-press);
 }
 
 .hint-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: default;
-  border-color: #55606e;
-  background: #3a4a5c;
-  color: #c9d2dc;
+  border-color: var(--line);
+  background: var(--panel-2);
+  color: var(--ivory-dim);
+  box-shadow: none;
 }
 
 /* Confirmación "¿Salir del nivel?" centrada dentro del marco. */
@@ -763,7 +811,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: calc(100cqw * 16 / 390);
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--backdrop);
   box-sizing: border-box;
 }
 
@@ -774,8 +822,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: calc(100cqw * 14 / 390);
-  background: #0d1b2a;
-  border: 1px solid #2f3b4b;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
   border-radius: calc(100cqw * 14 / 390);
   padding: calc(100cqw * 16 / 390);
 }
@@ -783,7 +831,7 @@ body {
 .confirm__text {
   margin: 0;
   font-size: calc(100cqw * 16 / 390);
-  color: #ffffff;
+  color: var(--ivory);
 }
 
 .confirm__buttons {
@@ -798,27 +846,27 @@ body {
   font-size: calc(100cqw * 16 / 390);
   font-weight: bold;
   border-radius: calc(100cqw * 10 / 390);
-  border: 2px solid #2f3b4b;
-  background: #16202e;
-  color: #ffffff;
+  border: 2px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ivory);
   cursor: pointer;
   font-family: inherit;
 }
 
 .confirm__btn--primary {
-  background: #2f9e44;
-  border-color: #2f9e44;
+  background: var(--jade);
+  border-color: var(--jade);
 }
 
 .confirm__btn--primary:active {
-  background: #267a37;
+  background: var(--jade-press);
 }
 
 .confirm__btn--danger {
-  background: #c92a2a;
-  border-color: #c92a2a;
+  background: var(--bad);
+  border-color: var(--bad);
 }
 
 .confirm__btn--danger:active {
-  background: #a61e1e;
+  background: var(--bad-press);
 }

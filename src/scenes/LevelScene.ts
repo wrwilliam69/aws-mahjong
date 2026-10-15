@@ -4,7 +4,8 @@
 // cargado con load.svg rasterizado al doble); si el servicio no tiene ícono o el
 // archivo falla al cargar, se dibuja el cuadro del color de la categoría con las
 // iniciales de `iconKey`. La ficha de nombre muestra `tileLines` (mínimo 13 px
-// reales, ver constantes).
+// reales, ver constantes). Tarea 18: todas las fichas son bloques de marfil con
+// canto 3D y sombra sobre la mesa de madera (texturas generadas con código).
 import * as Phaser from 'phaser';
 import type { TileSpec } from '../core/assign';
 import { catalog, tileLinesOf, type Category, type Service } from '../core/content';
@@ -62,19 +63,47 @@ const BOARD_TOP_GAP = 12;
 // (base) de la capa de arriba se asiente sobre la de abajo y se lean los pisos.
 const LAYER_OFFSET_X = -6;
 const LAYER_OFFSET_Y = -7;
-// Sombra proyectada de cada ficha hacia abajo-derecha (opuesto al corrimiento):
-// asoma bajo la cara y oscurece las fichas de las capas inferiores; al apilarse
-// capas la sombra se acumula (más fuerte cuanto más capas haya).
-const CAST_SHADOW_X = 10;
-const CAST_SHADOW_Y = 12;
-const CAST_SHADOW_ALPHA = 0.3;
-// Desplazamiento del canto 3D respecto de la cara (fracción del lado de la ficha):
-// es el relieve que hace que la ficha libre se vea "levantada".
-const EDGE_OFFSET_X_RATIO = 0.06;
-const EDGE_OFFSET_Y_RATIO = 0.08;
+// Tarea 18: estilo de Mahjong clásico. Fichas de marfil tipo bloque físico sobre
+// una mesa de madera. La madera la pinta el CSS de #game-frame (el canvas es
+// transparente); cara, canto y sombra son texturas de canvas generadas aquí con
+// gradientes, sin imágenes externas. Cada ficha ocupa su celda completa: la cara
+// arriba-izquierda y el canto 3D asoma abajo y a la derecha, así se ve en TODAS
+// las fichas (no solo en el borde del tablero) sin invadir la celda vecina.
+/** Grosor del canto 3D (abajo y a la derecha) como fracción del lado de la celda. */
+const EDGE_RATIO = 0.13;
+/** Margen interior de la cara para el contenido (fracción del lado de la cara). */
+const FACE_PAD_RATIO = 0.04;
+/** Radio de las esquinas de la cara y del canto (fracción del lado de la cara). */
+const FACE_RADIUS_RATIO = 0.12;
+/** Las texturas se generan al doble de su tamaño lógico para que se vean nítidas. */
+const TEX_SCALE = 2;
+const TEX_FACE = 'tile-face';
+const TEX_EDGE = 'tile-edge';
+const TEX_SHADOW = 'tile-shadow';
+/** Marfil de la cara: gradiente muy suave, más claro arriba-izquierda. */
+const IVORY_LIGHT = '#fdf9ef';
+const IVORY_DARK = '#eee3c9';
+/** Canto: el mismo marfil más oscuro, con un contorno tostado. */
+const EDGE_LIGHT = '#e2d0a6';
+const EDGE_DARK = '#c2a874';
+const EDGE_LINE = 'rgba(112, 84, 42, 0.6)';
+/** Sombra suave de la ficha sobre la mesa (o sobre las fichas de la capa de abajo). */
+const SHADOW_ALPHA = 0.5;
+const SHADOW_OFFSET_RATIO = 0.05;
+const SHADOW_BLUR_RATIO = 0.1;
+/** Franja del color de la categoría bajo el texto de la ficha de nombre. */
+const STRIPE_WIDTH_RATIO = 0.5;
+const STRIPE_HEIGHT_RATIO = 0.05;
+/** Cuadro de color del respaldo sin SVG (§8), dentro de la cara de marfil. */
+const FALLBACK_SQUARE_RATIO = 0.66;
+/** El texto largo de la ficha de nombre se estrecha en horizontal hasta este mínimo. */
+const MIN_TEXT_CONDENSE = 0.75;
+/** Barra superior: nogal oscuro con una línea tostada abajo y texto marfil. */
+const HUD_BG = 0x24170e;
+const HUD_LINE = 0x6e4c2f;
+const HUD_TEXT = '#f6eedc';
 const TILE_MAX_FONT = 22;
-const NAME_BG = 0xf3ecdc;
-const NAME_TEXT = '#241f18';
+const NAME_TEXT = '#2b2118';
 const SELECTED_STROKE = 0x00e5ff;
 /** Borde rojo temporal de las fichas que bloquean a la que se tocó (Tarea 13.4). */
 const BLOCKER_STROKE = 0xff3b30;
@@ -85,21 +114,41 @@ const HINT_PULSE_HALF_MS = 250; // una subida o bajada del pulso
 const HINT_PULSE_CYCLES = 3; // 3 ciclos × 500 ms = 1,5 s
 // Tarea 13.5: libre vs bloqueada se diferencian FÍSICAMENTE, no solo por color.
 // La libre está "levantada" (escala 1, canto 3D, sombra y borde claro sutil); la
-// bloqueada está "hundida" (sin sombra ni canto, escala encogida, cara oscura y
-// translúcida). El rectángulo de toque NO cambia: sigue siendo el de la ficha
-// completa, así el aviso y el resaltado rojo de la Tarea 13.4 siguen valiendo.
-/** Escala de la ficha hundida (bloqueada), centrada en su posición. */
+// bloqueada está "hundida" (sin sombra ni canto, cara encogida y oscura). El
+// rectángulo de toque NO cambia: sigue siendo el de la ficha completa, así el
+// aviso y el resaltado rojo de la Tarea 13.4 siguen valiendo.
+/**
+ * Escala de la CARA de la ficha hundida (bloqueada), centrada en su celda.
+ * Tarea 18: solo se encogen la cara, su contorno y sus colores planos; el texto y
+ * el ícono NO, para que la letra siga ≥ 15 px lógicos (≈ 13,2 px reales a
+ * 360×740). Si el texto no cabe en la cara encogida, se estrecha en horizontal.
+ */
 const BLOCKED_SCALE = 0.92;
-/** Alpha de la cara de la ficha hundida (algo de transparencia, Tarea 13.5). */
-const BLOCKED_FACE_ALPHA = 0.75;
-/** Cuánto se oscurece la cara de la bloqueada, además del gris de la Tarea 13.1. */
+/**
+ * Alpha de la cara de la ficha hundida. La Tarea 13.5 pedía algo de
+ * transparencia (0,75), pero sobre el marfil la translucidez dejaba ver los
+ * textos de la capa de abajo en los tableros con pisos (p. ej. "Storage Gateway"
+ * a través de "Aurora"). Tarea 18: opaca; la hundida se distingue por más oscura,
+ * más pequeña y sin canto ni sombra.
+ */
+const BLOCKED_FACE_ALPHA = 1;
+/** Cuánto se oscurecen los colores planos (franja, cuadro de respaldo) de la bloqueada. */
 const BLOCKED_DARKEN = 0.25;
-/** Borde claro sutil (1–2 px lógicos ≈ 1,85 reales a 360 px) de la ficha libre. */
-const LIFT_STROKE = 0xffffff;
-const LIFT_STROKE_ALPHA = 0.5;
-const LIFT_STROKE_WIDTH = 2;
-/** El SVG ocupa el 75 % de la cara de la ficha de ícono. */
-const ICON_FILL_RATIO = 0.75;
+/**
+ * Tarea 18: tinte de la cara de marfil de la bloqueada. El tinte multiplica, así
+ * que apaga y oscurece el marfil hacia un gris tostado (además del gris del
+ * contenido de la Tarea 13.1, la escala 0,92 y la translucidez de la 13.5).
+ */
+const BLOCKED_FACE_TINT = 0xa29b8f;
+/**
+ * Contorno fino de la ficha libre (Tarea 13.5, adaptado al marfil): sobre marfil
+ * un borde blanco no se ve, así que es un tostado sutil que la separa de las vecinas.
+ */
+const LIFT_STROKE = 0x9c835a;
+const LIFT_STROKE_ALPHA = 0.6;
+const LIFT_STROKE_WIDTH = 1.5;
+/** El SVG ocupa el 72 % de la cara de la ficha de ícono. */
+const ICON_FILL_RATIO = 0.72;
 /** Rasterizado del SVG al doble del tamaño dibujado, para que se vea nítido. */
 const ICON_RASTER_MULT = 2;
 /**
@@ -189,13 +238,31 @@ interface TileView {
   halfW: number;
   halfH: number;
   container: Phaser.GameObjects.Container;
-  face: Phaser.GameObjects.Rectangle;
-  /** Canto de la ficha (color de la categoría o cara oscurecida). */
-  base: Phaser.GameObjects.Rectangle;
-  faceColor: number;
-  edgeColor: number;
-  /** Sombra proyectada abajo-derecha hacia las fichas de las capas inferiores. */
-  shadow: Phaser.GameObjects.Rectangle;
+  /**
+   * Parte de arriba de la ficha (cara + contorno + contenido). Levantada va
+   * arriba-izquierda de la celda; hundida se centra y el canto deja de verse.
+   */
+  top: Phaser.GameObjects.Container;
+  /** Desplazamiento de `top` cuando la ficha está levantada (−canto/2 en x e y). */
+  liftOffset: number;
+  /** Lado de la cara de marfil (la celda menos el canto). */
+  faceSize: number;
+  /** Cara de marfil (textura con gradiente); hundida se tiñe más oscura. */
+  face: Phaser.GameObjects.Image;
+  /** Contorno de la cara: borde fino de la libre, selección, bloqueos (13.4). */
+  outline: Phaser.GameObjects.Rectangle;
+  /** Canto 3D de marfil oscuro (abajo y a la derecha). */
+  edge: Phaser.GameObjects.Image;
+  /** Sombra suave sobre la mesa o sobre las fichas de la capa de abajo. */
+  shadow: Phaser.GameObjects.Image;
+  /** Colores planos de la ficha (franja de categoría, cuadro de respaldo). */
+  flats: Array<{ rect: Phaser.GameObjects.Rectangle; color: number }>;
+  /**
+   * Textos de la ficha de nombre con su estrechamiento horizontal: libre
+   * (`freeScaleX`) y hundida (`blockedScaleX`, para caber en la cara encogida).
+   * El alto (scaleY) es siempre 1: la letra nunca baja del mínimo.
+   */
+  nameTexts: Array<{ text: Phaser.GameObjects.Text; freeScaleX: number; blockedScaleX: number }>;
   /** Contenido de la cara (imagen del ícono o texto): recibe el filtro de grises. */
   content: Array<Phaser.GameObjects.Image | Phaser.GameObjects.Text>;
   /** Ícono SVG, si la ficha lo tiene: recibe el tinte del respaldo sin filtro. */
@@ -241,6 +308,25 @@ function lerpColor(a: number, b: number, t: number): number {
     return Math.round(ca + (cb - ca) * t);
   };
   return (channel(16) << 16) | (channel(8) << 8) | channel(0);
+}
+
+/** Traza un rectángulo redondeado en un canvas 2D (sin depender de `ctx.roundRect`). */
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
 }
 
 function formatTime(ms: number): string {
@@ -318,9 +404,10 @@ export class LevelScene extends Phaser.Scene {
     this.cardRatio = ui.fitCardToLevel(this.setup.tiles.map((t) => t.serviceId));
     this.layout = this.boardLayout();
     this.neededIconIds = this.boardIconServiceIds();
-    // Rasteriza al doble del tamaño en que se dibuja el SVG (nítido en celulares).
+    // Rasteriza al doble del tamaño en que se dibuja el SVG (nítido en celulares);
+    // el ícono va en la cara de marfil, que es la celda menos el canto (Tarea 18).
     this.iconRasterSize = Math.round(
-      this.layout.tileSize * ICON_FILL_RATIO * ICON_RASTER_MULT,
+      this.layout.tileSize * (1 - EDGE_RATIO) * ICON_FILL_RATIO * ICON_RASTER_MULT,
     );
   }
 
@@ -340,6 +427,7 @@ export class LevelScene extends Phaser.Scene {
 
   create(): void {
     this.buildHud();
+    this.makeTileTextures();
     this.buildTiles();
     ui.showTutorial();
     // Práctica libre (level === null): el botón "Menú" pide confirmar la salida de
@@ -368,14 +456,16 @@ export class LevelScene extends Phaser.Scene {
 
   private buildHud(): void {
     const width = this.scale.width;
+    // Barra en nogal oscuro con una línea tostada abajo (Tarea 18).
     this.add
-      .rectangle(width / 2, TOP_BAR_HEIGHT / 2, width, TOP_BAR_HEIGHT, 0x0d1b2a, 1)
+      .rectangle(width / 2, TOP_BAR_HEIGHT / 2, width, TOP_BAR_HEIGHT, HUD_BG, 1)
       .setDepth(90000);
+    this.add.rectangle(width / 2, TOP_BAR_HEIGHT - 1, width, 2, HUD_LINE, 1).setDepth(90000);
     this.scoreText = this.add
       .text(16, TOP_BAR_HEIGHT / 2, 'Puntos: 0', {
         fontFamily: 'Arial, sans-serif',
         fontSize: '20px',
-        color: '#ffffff',
+        color: HUD_TEXT,
         fontStyle: 'bold',
       })
       .setOrigin(0, 0.5)
@@ -384,7 +474,7 @@ export class LevelScene extends Phaser.Scene {
       .text(width - 16, TOP_BAR_HEIGHT / 2, '0:00', {
         fontFamily: 'Arial, sans-serif',
         fontSize: '20px',
-        color: '#ffffff',
+        color: HUD_TEXT,
         fontStyle: 'bold',
       })
       .setOrigin(1, 0.5)
@@ -454,6 +544,96 @@ export class LevelScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Texturas de la ficha de marfil (Tarea 18), generadas con canvas 2D al tamaño
+   * de la ficha de ESTE nivel: la cara (gradiente muy suave, más clara
+   * arriba-izquierda, con un brillo fino), el canto (el bloque extruido hacia
+   * abajo-derecha en marfil más oscuro, con contorno tostado) y la sombra suave
+   * sobre la mesa. Nada viene de imágenes externas.
+   */
+  private makeTileTextures(): void {
+    const tileSize = this.layout.tileSize;
+    const edgeSize = tileSize * EDGE_RATIO;
+    const faceSize = tileSize - edgeSize;
+    const radius = faceSize * FACE_RADIUS_RATIO;
+
+    this.canvasTexture(TEX_FACE, faceSize, faceSize, (ctx) => {
+      const fill = ctx.createLinearGradient(0, 0, faceSize, faceSize);
+      fill.addColorStop(0, IVORY_LIGHT);
+      fill.addColorStop(1, IVORY_DARK);
+      roundRectPath(ctx, 0, 0, faceSize, faceSize, radius);
+      ctx.fillStyle = fill;
+      ctx.fill();
+      // Brillo fino arriba-izquierda que se apaga hacia abajo-derecha.
+      const lw = Math.max(1, faceSize * 0.02);
+      const rim = ctx.createLinearGradient(0, 0, faceSize, faceSize);
+      rim.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+      rim.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+      rim.addColorStop(1, 'rgba(150, 118, 66, 0.35)');
+      roundRectPath(ctx, lw / 2, lw / 2, faceSize - lw, faceSize - lw, radius - lw / 2);
+      ctx.lineWidth = lw;
+      ctx.strokeStyle = rim;
+      ctx.stroke();
+    });
+
+    // Canto: copias de la silueta desde el fondo (desplazada un canto entero
+    // abajo-derecha) hasta casi la cara, que lo tapa; así el lateral es sólido. El
+    // contorno tostado se traza en la copia más profunda y solo queda a la vista
+    // en el borde exterior de abajo y de la derecha.
+    this.canvasTexture(TEX_EDGE, tileSize, tileSize, (ctx) => {
+      const steps = Math.max(1, Math.ceil(edgeSize * TEX_SCALE));
+      for (let k = steps; k >= 1; k--) {
+        const o = (edgeSize * k) / steps;
+        const fill = ctx.createLinearGradient(o, o, o + faceSize, o + faceSize);
+        fill.addColorStop(0, EDGE_LIGHT);
+        fill.addColorStop(1, EDGE_DARK);
+        roundRectPath(ctx, o, o, faceSize, faceSize, radius);
+        ctx.fillStyle = fill;
+        ctx.fill();
+        if (k === steps) {
+          ctx.lineWidth = Math.max(1, faceSize * 0.02);
+          ctx.strokeStyle = EDGE_LINE;
+          ctx.stroke();
+        }
+      }
+    });
+
+    // Sombra suave: se dibuja la silueta fuera del lienzo y solo su sombra
+    // difuminada (shadowOffset) cae dentro. shadowBlur y shadowOffset van en
+    // píxeles del canvas, no les afecta la escala.
+    const blur = tileSize * SHADOW_BLUR_RATIO;
+    const margin = Math.ceil(blur * 2);
+    const shadowSize = tileSize + 2 * margin;
+    this.canvasTexture(TEX_SHADOW, shadowSize, shadowSize, (ctx, scale) => {
+      ctx.shadowColor = `rgba(0, 0, 0, ${SHADOW_ALPHA})`;
+      ctx.shadowBlur = blur * scale;
+      ctx.shadowOffsetX = shadowSize * scale;
+      roundRectPath(ctx, margin - shadowSize, margin, tileSize, tileSize, radius);
+      ctx.fillStyle = '#000000';
+      ctx.fill();
+    });
+  }
+
+  /** Crea (o rehace) una textura de canvas de `w`×`h` px lógicos, a TEX_SCALE. */
+  private canvasTexture(
+    key: string,
+    w: number,
+    h: number,
+    draw: (ctx: CanvasRenderingContext2D, scale: number) => void,
+  ): void {
+    if (this.textures.exists(key)) this.textures.remove(key);
+    const texture = this.textures.createCanvas(
+      key,
+      Math.ceil(w * TEX_SCALE),
+      Math.ceil(h * TEX_SCALE),
+    );
+    if (texture === null) return;
+    const ctx = texture.getContext();
+    ctx.setTransform(TEX_SCALE, 0, 0, TEX_SCALE, 0, 0);
+    draw(ctx, TEX_SCALE);
+    texture.refresh();
+  }
+
   private buildTiles(): void {
     const { unit, tileSize, originX, originY } = this.layout;
     const slots = this.setup.slots;
@@ -481,7 +661,12 @@ export class LevelScene extends Phaser.Scene {
       throw new Error(`LevelScene: el servicio "${tile.serviceId}" no está en el catálogo`);
     }
 
-    const radius = Math.max(4, tileSize * 0.1);
+    // Tarea 18: la ficha es un bloque de marfil que ocupa su celda. La cara (celda
+    // menos el canto) va arriba-izquierda y el canto asoma abajo y a la derecha.
+    const edgeSize = tileSize * EDGE_RATIO;
+    const faceSize = tileSize - edgeSize;
+    const radius = faceSize * FACE_RADIUS_RATIO;
+    const liftOffset = -edgeSize / 2;
     const container = this.add.container(centerX, centerY);
     // Orden de profundidad de §3.4: z, luego y, luego x.
     container.setDepth(z * 10000 + y * 100 + x);
@@ -493,52 +678,69 @@ export class LevelScene extends Phaser.Scene {
       !this.failedIconTextures.has(textureKey) &&
       this.textures.exists(textureKey);
 
-    // Ficha de ícono con SVG: cara crema y canto del color de la categoría (§8).
-    // Respaldo (sin ícono o falla): cuadro del color de la categoría + `iconKey`.
-    let faceColor: number;
-    let edgeColor: number;
-    if (iconReady) {
-      faceColor = NAME_BG;
-      edgeColor = this.iconColor(service);
-    } else {
-      faceColor = tile.face === 'icon' ? this.iconColor(service) : NAME_BG;
-      edgeColor = darken(faceColor, 0.4);
-    }
+    // Sombra suave sobre la mesa (o sobre la capa de abajo) y canto 3D.
+    const shadowOffset = tileSize * SHADOW_OFFSET_RATIO;
+    const shadow = this.add.image(shadowOffset, shadowOffset, TEX_SHADOW);
+    shadow.setDisplaySize(shadow.width / TEX_SCALE, shadow.height / TEX_SCALE);
+    const edge = this.add.image(0, 0, TEX_EDGE).setDisplaySize(tileSize, tileSize);
 
-    // Sombra proyectada hacia abajo-derecha, detrás de la cara: asoma bajo el
-    // canto y oscurece las fichas de capas inferiores o el fondo (Tarea 12.2).
-    const shadow = this.add
-      .rectangle(CAST_SHADOW_X, CAST_SHADOW_Y, tileSize, tileSize, 0x000000, CAST_SHADOW_ALPHA)
-      .setRounded(radius);
-    const base = this.add
-      .rectangle(
-        tileSize * EDGE_OFFSET_X_RATIO,
-        tileSize * EDGE_OFFSET_Y_RATIO,
-        tileSize,
-        tileSize,
-        edgeColor,
-      )
-      .setRounded(radius);
-    const face = this.add.rectangle(0, 0, tileSize, tileSize, faceColor).setRounded(radius);
+    // Parte de arriba: cara de marfil igual para TODAS las fichas, con el contenido.
+    const top = this.add.container(liftOffset, liftOffset);
+    const face = this.add.image(0, 0, TEX_FACE).setDisplaySize(faceSize, faceSize);
+    const outline = this.add.rectangle(0, 0, faceSize, faceSize).setRounded(radius);
 
     // Contenido de la cara: en las bloqueadas, el filtro de grises va aquí (Tarea 13.1).
+    // El color de la categoría ya no va en el canto: el ícono oficial trae el
+    // suyo y la ficha de nombre lleva una franja fina de ese color bajo el texto.
+    const flats: TileView['flats'] = [];
+    const nameTexts: TileView['nameTexts'] = [];
     let iconImage: Phaser.GameObjects.Image | null = null;
     let content: Array<Phaser.GameObjects.Image | Phaser.GameObjects.Text>;
     if (iconReady) {
-      iconImage = this.makeIconImage(tile.serviceId, tileSize);
+      iconImage = this.makeIconImage(tile.serviceId, faceSize);
       content = [iconImage];
     } else if (tile.face === 'icon') {
-      content = [this.makeIconLabel(service, tileSize)];
+      // Respaldo (§8): cuadro del color de la categoría con `iconKey`, sobre el marfil.
+      const color = this.iconColor(service);
+      const square = faceSize * FALLBACK_SQUARE_RATIO;
+      flats.push({
+        rect: this.add.rectangle(0, 0, square, square, color).setRounded(square * 0.14),
+        color,
+      });
+      content = [this.makeIconLabel(service, square)];
     } else {
-      content = this.makeNameLabel(service, tileSize);
+      const color = this.iconColor(service);
+      const stripeH = Math.max(3, faceSize * STRIPE_HEIGHT_RATIO);
+      const stripeY = faceSize * 0.4 - stripeH / 2;
+      flats.push({
+        rect: this.add
+          .rectangle(0, stripeY, faceSize * STRIPE_WIDTH_RATIO, stripeH, color)
+          .setRounded(stripeH / 2),
+        color,
+      });
+      // El texto se centra en el espacio que queda por encima de la franja.
+      const texts = this.makeNameLabel(service, faceSize, -(faceSize * 0.09 + stripeH) / 2);
+      // Hundida, la cara mide BLOCKED_SCALE: el texto conserva su alto y, si no
+      // cabe en ese ancho, se estrecha un poco más en horizontal.
+      const blockedInner = faceSize * BLOCKED_SCALE * (1 - 2 * FACE_PAD_RATIO);
+      for (const text of texts) {
+        const freeScaleX = text.scaleX;
+        const blockedScaleX = Math.min(
+          freeScaleX,
+          Math.max(MIN_TEXT_CONDENSE, blockedInner / text.width),
+        );
+        nameTexts.push({ text, freeScaleX, blockedScaleX });
+      }
+      content = texts;
     }
 
     // Capa oscura del respaldo sin filtro (la transición la maneja refreshTiles).
     const overlay = this.add
-      .rectangle(0, 0, tileSize, tileSize, 0x000000, 1)
+      .rectangle(0, 0, faceSize, faceSize, 0x000000, 1)
       .setRounded(radius)
       .setAlpha(0);
-    container.add([shadow, base, face, ...content, overlay]);
+    top.add([face, ...flats.map((f) => f.rect), ...content, outline, overlay]);
+    container.add([shadow, edge, top]);
 
     return {
       slot,
@@ -550,11 +752,15 @@ export class LevelScene extends Phaser.Scene {
       halfW: tileSize / 2,
       halfH: tileSize / 2,
       container,
+      top,
+      liftOffset,
+      faceSize,
       face,
-      base,
-      faceColor,
-      edgeColor,
+      outline,
+      edge,
       shadow,
+      flats,
+      nameTexts,
       content,
       iconImage,
       overlay,
@@ -570,18 +776,18 @@ export class LevelScene extends Phaser.Scene {
     return category === undefined ? 0x607d8b : parseColor(category.color);
   }
 
-  /** Ícono oficial del servicio, centrado y ocupando ~75 % de la cara. */
-  private makeIconImage(serviceId: string, tileSize: number): Phaser.GameObjects.Image {
-    const draw = tileSize * ICON_FILL_RATIO;
+  /** Ícono oficial del servicio, centrado y ocupando ~72 % de la cara de marfil. */
+  private makeIconImage(serviceId: string, faceSize: number): Phaser.GameObjects.Image {
+    const draw = faceSize * ICON_FILL_RATIO;
     return this.add.image(0, 0, `icon:${serviceId}`).setDisplaySize(draw, draw);
   }
 
-  /** Iniciales grandes de `iconKey` sobre el cuadro del color de la categoría (§8). */
-  private makeIconLabel(service: Service, tileSize: number): Phaser.GameObjects.Text {
-    const inner = tileSize * 0.9;
+  /** Iniciales grandes de `iconKey` dentro del cuadro del color de la categoría (§8). */
+  private makeIconLabel(service: Service, squareSize: number): Phaser.GameObjects.Text {
+    const inner = squareSize * 0.86;
     const key = service.iconKey;
     const fitted = Math.floor(inner / (key.length * 0.62));
-    const fontSize = Phaser.Math.Clamp(Math.min(tileSize * 0.36, fitted), 12, 40);
+    const fontSize = Phaser.Math.Clamp(Math.min(squareSize * 0.42, fitted), 12, 40);
     const text = this.add
       .text(0, 0, key, {
         fontFamily: 'Arial, sans-serif',
@@ -594,14 +800,18 @@ export class LevelScene extends Phaser.Scene {
   }
 
   /** Texto de la ficha de nombre: `tileLines`, con tamaño que nunca baja de 13 px reales. */
-  private makeNameLabel(service: Service, tileSize: number): Phaser.GameObjects.Text[] {
+  private makeNameLabel(
+    service: Service,
+    faceSize: number,
+    centerY: number,
+  ): Phaser.GameObjects.Text[] {
     const lines = tileLinesOf(service);
     const maxLineLen = Math.max(1, ...lines.map((line) => line.length));
-    const inner = tileSize * 0.9;
+    const inner = faceSize * (1 - 2 * FACE_PAD_RATIO);
     const fitted = Math.floor(inner / (maxLineLen * 0.55));
     const fontSize = Phaser.Math.Clamp(fitted, MIN_NAME_FONT, TILE_MAX_FONT);
     const text = this.add
-      .text(0, 0, lines.join('\n'), {
+      .text(0, centerY, lines.join('\n'), {
         fontFamily: 'Arial, sans-serif',
         fontSize: `${fontSize}px`,
         color: NAME_TEXT,
@@ -609,14 +819,22 @@ export class LevelScene extends Phaser.Scene {
         align: 'center',
       })
       .setOrigin(0.5);
-    return [this.fitInside(text, inner)];
+    return [this.condenseToFit(text, inner)];
   }
 
   /**
-   * Encoge el texto lo justo para que quepa en `maxWidth`. El tamaño mínimo de
-   * la ficha de nombre (15 px lógicos ≈ 13,8 reales) es una estimación holgada,
-   * así que este ajuste nunca baja del mínimo del AGENTS.md §6.
+   * Tarea 18: si una palabra larga no cabe en la cara de marfil, se ESTRECHA solo
+   * en horizontal (como una letra condensada) y nunca se achica en alto: el
+   * tamaño de la letra sigue ≥ 15 px lógicos ≈ 13,2 px reales a 360 px (AGENTS.md §6).
    */
+  private condenseToFit(text: Phaser.GameObjects.Text, maxWidth: number): Phaser.GameObjects.Text {
+    if (text.width > maxWidth) {
+      text.setScale(Math.max(MIN_TEXT_CONDENSE, maxWidth / text.width), 1);
+    }
+    return text;
+  }
+
+  /** Encoge el texto (iniciales de `iconKey`) lo justo para que quepa en `maxWidth`. */
   private fitInside(text: Phaser.GameObjects.Text, maxWidth: number): Phaser.GameObjects.Text {
     if (text.width > maxWidth) text.setScale(maxWidth / text.width);
     return text;
@@ -631,13 +849,13 @@ export class LevelScene extends Phaser.Scene {
       const blocked = !isFree(this.rt.g, this.rt.present, view.slot);
       this.applyBlockedVisual(view, blocked);
       if (this.rt.selected === view.slot) {
-        view.face.setStrokeStyle(4, SELECTED_STROKE, 1);
+        view.outline.setStrokeStyle(4, SELECTED_STROKE, 1);
       } else if (blocked) {
-        // Hundida: sin borde claro (solo el gris/oscurecido de su cara).
-        view.face.setStrokeStyle();
+        // Hundida: sin contorno (solo el gris/oscurecido de su cara).
+        view.outline.setStrokeStyle();
       } else {
-        // Levantada: borde claro sutil que la resalta (Tarea 13.5).
-        view.face.setStrokeStyle(LIFT_STROKE_WIDTH, LIFT_STROKE, LIFT_STROKE_ALPHA);
+        // Levantada: contorno fino que la separa de las vecinas (Tarea 13.5).
+        view.outline.setStrokeStyle(LIFT_STROKE_WIDTH, LIFT_STROKE, LIFT_STROKE_ALPHA);
       }
     }
     this.initialPaint = false;
@@ -718,29 +936,43 @@ export class LevelScene extends Phaser.Scene {
   private paintBlockFx(view: TileView): void {
     const t = view.blockFx.t;
 
-    // Hundimiento físico (Tarea 13.5): la bloqueada se pega al tablero (sin
-    // sombra ni canto 3D), encoge al 0,92 y se oscurece/translúcida; al liberarse
-    // crece a 1, recupera la sombra, el canto y el color (se "despierta").
-    view.container.setScale(1 - (1 - BLOCKED_SCALE) * t);
-    view.shadow.setAlpha(CAST_SHADOW_ALPHA * (1 - t));
-    // El canto se desvanece y se pega a la cara: sin relieve cuando está hundida.
-    view.base.setAlpha(1 - t);
-    view.base.setPosition(
-      view.halfW * 2 * EDGE_OFFSET_X_RATIO * (1 - t),
-      view.halfH * 2 * EDGE_OFFSET_Y_RATIO * (1 - t),
-    );
-    view.face.setAlpha(1 - (1 - BLOCKED_FACE_ALPHA) * t);
+    // Hundimiento físico (Tarea 13.5, adaptado al marfil en la 18): la bloqueada
+    // se pega a la mesa (sin sombra ni canto 3D: la cara baja al centro de su
+    // celda), su CARA encoge al 0,92 y su marfil se apaga y oscurece; al liberarse
+    // crece a 1, sube y recupera sombra, canto y color (se "despierta").
+    view.shadow.setAlpha(1 - t);
+    view.edge.setAlpha(1 - t);
+    const offset = view.liftOffset * (1 - t);
+    view.top.setPosition(offset, offset);
+    // Se encogen la cara, su contorno y sus colores planos, pero NO el texto ni el
+    // ícono: así la letra de la bloqueada sigue ≥ 13 px reales (Tarea 18).
+    const faceScale = 1 - (1 - BLOCKED_SCALE) * t;
+    const faceDisplay = view.faceSize * faceScale;
+    view.face.setDisplaySize(faceDisplay, faceDisplay);
+    view.outline.setScale(faceScale);
+    view.overlay.setScale(faceScale);
+    for (const flat of view.flats) flat.rect.setScale(faceScale);
+    // El texto conserva el alto y solo se estrecha en horizontal si no cabe.
+    for (const nt of view.nameTexts) {
+      nt.text.setScale(nt.freeScaleX + (nt.blockedScaleX - nt.freeScaleX) * t, 1);
+    }
+    const alpha = 1 - (1 - BLOCKED_FACE_ALPHA) * t;
+    view.face.setAlpha(alpha);
+    // El tinte multiplica: blanco = marfil normal, BLOCKED_FACE_TINT = apagado.
+    if (t === 0) view.face.clearTint();
+    else view.face.setTint(lerpColor(0xffffff, BLOCKED_FACE_TINT, t));
     // El contenido (ícono o texto) se acompasa con la translucidez de la cara.
-    for (const obj of view.content) obj.setAlpha(1 - (1 - BLOCKED_FACE_ALPHA) * t);
+    for (const obj of view.content) obj.setAlpha(alpha);
+    // Colores planos (franja, cuadro de respaldo) a su gris exacto, oscurecido.
+    for (const flat of view.flats) {
+      const target = darken(grayOf(flat.color), 1 - BLOCKED_DARKEN * t);
+      flat.rect.setFillStyle(lerpColor(flat.color, target, t));
+      flat.rect.setAlpha(alpha);
+    }
 
     if (view.grayscale !== null) {
-      // Con filtro: gris en el contenido; cara y canto (colores planos) a su gris
-      // exacto, oscurecido además cuando está hundida.
+      // Con filtro: gris en el contenido (ícono o texto).
       for (const cm of view.grayscale) cm.alpha = t;
-      const faceTarget = darken(grayOf(view.faceColor), 1 - BLOCKED_DARKEN * t);
-      view.face.setFillStyle(lerpColor(view.faceColor, faceTarget, t));
-      const edgeTarget = darken(grayOf(view.edgeColor), 1 - BLOCKED_DARKEN * t);
-      view.base.setFillStyle(lerpColor(view.edgeColor, edgeTarget, t));
       return;
     }
     // Respaldo sin filtro: capa oscura ~65 % y tinte gris oscuro en el ícono.
@@ -851,7 +1083,7 @@ export class LevelScene extends Phaser.Scene {
     for (const slot of slots) {
       const view = this.views[slot];
       if (view === undefined || view.removed) continue;
-      view.face.setStrokeStyle(5, BLOCKER_STROKE, 1);
+      view.outline.setStrokeStyle(5, BLOCKER_STROKE, 1);
     }
     this.time.delayedCall(BLOCKER_HIGHLIGHT_MS, () => this.refreshTiles());
   }
@@ -877,13 +1109,14 @@ export class LevelScene extends Phaser.Scene {
     for (const slot of [a, b]) {
       const view = this.views[slot];
       if (view === undefined || view.removed) continue;
-      const size = view.halfW * 2;
+      // El pulso rodea la cara de marfil (va en `top`, así sigue a la cara).
+      const size = view.faceSize;
       const glow = this.add
         .rectangle(0, 0, size, size, HINT_STROKE, 0)
         .setStrokeStyle(4, HINT_STROKE, 1)
-        .setRounded(Math.max(4, size * 0.1))
+        .setRounded(size * FACE_RADIUS_RATIO)
         .setAlpha(0.15);
-      view.container.add(glow);
+      view.top.add(glow);
       this.tweens.add({
         targets: glow,
         alpha: 1,
