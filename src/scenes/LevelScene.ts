@@ -22,6 +22,7 @@ import { buildResults, errorLimitFor3Stars, failedServiceIds } from '../core/res
 import { makeRng } from '../core/rng';
 import { pairPoints } from '../core/scoring';
 import { isPairFree } from '../core/solve';
+import { iconUrl } from '../utils/icon';
 import iconMap from '../data/icon-map.json';
 import { ALL_TEMPLATES } from '../data/layouts';
 import {
@@ -324,10 +325,8 @@ export class LevelScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // `BASE_URL` en vez de una ruta fija a mano (GitHub Pages sirve bajo /aws-mahjong/).
-    const base = import.meta.env.BASE_URL;
     for (const serviceId of this.neededIconIds) {
-      this.load.svg(`icon:${serviceId}`, `${base}icons/${serviceId}.svg`, {
+      this.load.svg(`icon:${serviceId}`, iconUrl(serviceId), {
         width: this.iconRasterSize,
         height: this.iconRasterSize,
       });

@@ -516,6 +516,19 @@ Autorizada por el usuario: el repo pasa a PÚBLICO y se publica en GitHub Pages 
 
 ---
 
+### [x] Tarea 17.1 — Íconos rotos en la versión publicada de GitHub Pages
+
+Bug visto por el usuario en https://wrwilliam69.github.io/aws-mahjong/: en la tarjeta de repaso (y posiblemente en la pregunta y en los resultados) el ícono salía como imagen rota. Causa: las capas HTML construían la ruta del SVG como `/icons/<id>.svg` (absoluta, de cuando `base` era `/`), mientras que en Pages el sitio vive en `/aws-mahjong/`.
+
+**Haz:**
+1. `src/utils/icon.ts` (nuevo): función única `iconUrl(id)` que arma la ruta con `import.meta.env.BASE_URL` (`${BASE_URL}icons/<id>.svg`, normalizando la barra final). La usan tanto Phaser (`LevelScene.preload` con `load.svg`) como el HTML (`src/ui/game-ui.ts::iconEl`).
+2. Si un SVG no carga en el HTML (evento `error` de `<img>`), `iconEl` muestra el respaldo (cuadro de color de la categoría + `iconKey`) en vez de la imagen rota.
+3. Pruebas en `tests/icon-url.test.ts`: `iconUrl` usa `BASE_URL` y no empieza por `/icons/` con base `/aws-mahjong/`; y ningún archivo de `src/` contiene la cadena `'/icons/` ni `"/icons/` escrita a mano.
+
+**Lista cuando:** `npm test` y `npm run build` pasan, y `npx vite preview` (sirve `dist/` con base `/aws-mahjong/`) entrega `/aws-mahjong/icons/<id>.svg` con 200 e `image/svg+xml`. No se hace git commit ni push.
+
+---
+
 ### [x] Tarea 17.2 — Corrección del despliegue en GitHub Actions
 
 El flujo `.github/workflows/deploy.yml` fallaba en GitHub Actions en el paso `actions/configure-pages@v5` con "TypeError: error must be an instance of Error", y había un aviso de que `checkout@v4` y `setup-node@v4` estaban siendo forzadas a correr en Node.js 24. Pruebas y build pasaban; solo fallaba ese paso.

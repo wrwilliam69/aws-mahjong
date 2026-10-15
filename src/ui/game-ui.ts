@@ -21,9 +21,8 @@ import {
 } from '../core/review';
 import { missedCriterionText, type ResultsData } from '../core/results';
 import { LEVELS, type LevelDef } from '../data/levels';
+import { iconUrl } from '../utils/icon';
 import iconMap from '../data/icon-map.json';
-
-const BASE_URL = import.meta.env.BASE_URL;
 
 const CORRECT_DELAY_MS = 1200;
 
@@ -288,7 +287,15 @@ function iconEl(serviceId: string, icon: ReviewIconSpec): HTMLElement {
     const img = document.createElement('img');
     img.className = 'review-icon';
     img.alt = serviceId;
-    img.src = `${BASE_URL}icons/${serviceId}.svg`;
+    img.src = iconUrl(serviceId);
+    img.onerror = () => {
+      img.style.display = 'none';
+      const fallback = document.createElement('div');
+      fallback.className = 'review-icon review-icon--fallback';
+      fallback.style.backgroundColor = icon.color;
+      fallback.textContent = icon.iconKey;
+      img.replaceWith(fallback);
+    };
     return img;
   }
   const div = document.createElement('div');
