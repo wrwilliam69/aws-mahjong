@@ -561,3 +561,38 @@ Referencia del usuario: un Mahjong móvil comercial con fichas de marfil tipo bl
 3. **Bloqueadas** (regla de la 13.5 adaptada al marfil): hundidas (la cara baja al centro de su celda), **sin canto ni sombra**, marfil apagado y más oscuro (`BLOCKED_FACE_TINT`), contenido en gris (13.1) y franja/cuadro de color en gris. **Corrección del usuario:** la escala 0,92 (`BLOCKED_SCALE`) se aplica **solo a la cara** (y a su contorno, capa oscura y colores planos), ya no a toda la ficha: el **texto y el ícono conservan su tamaño**, así la letra de las bloqueadas también queda ≥ 13 px reales a 360×740 (antes, con toda la ficha al 0,92, bajaba a ≈ 12,1 px). Si el texto no cabe en la cara encogida, se estrecha un poco más en horizontal (`nameTexts.blockedScaleX`, nunca por debajo de 0,75; el alto no cambia). Medido en el nivel 3 a 360×740: todos los textos de ficha con escala vertical 1 y mínimo de **14,03 px reales** ("DynamoDB" hundida, estrechada al 0,787). **Decisión:** la cara hundida pasa a ser **opaca** (`BLOCKED_FACE_ALPHA` de 0,75 a 1), porque sobre el marfil la translucidez dejaba leer los textos de la capa de abajo en los tableros con pisos (p. ej. "Storage Gateway" a través de "Aurora"); se sigue distinguiendo claramente de la libre por color, tamaño y relieve. Al liberarse, la animación de ~200 ms la sube, recupera canto, sombra y color.
 4. **Sin cambios** en las reglas, la posición fija del tablero (13.6), el área de toque (§3.4), el resaltado rojo (13.4) ni la pista (15). **Letra ≥ 13 px reales:** como la cara es un 13 % más angosta que la celda, el texto largo de la ficha de nombre se **estrecha solo en horizontal** (`condenseToFit`, `scaleX` ≥ 0,75) y nunca baja de 15 px lógicos de alto (≈ 13,2 px reales en 360×740); antes, una palabra como "CloudWatch" se encogía de forma uniforme por debajo de ese mínimo.
 5. Verificado en el navegador integrado en 360×740 y PC (1920×1080), niveles 1 y 3, con una pregunta (incluida la respuesta incorrecta) y los resultados. `npm test` y `npm run build` pasan. No se hace git commit ni push.
+
+---
+
+### [x] Tarea 18.2 — Leer "Ver más" no gasta tiempo
+
+Comentario de un jugador: al abrir "Ver más" para leer la explicación completa, el reloj seguía corriendo y por eso no subía la estrella. Mismo principio que la pregunta (§11.1, "no castigar leer").
+
+1. **Core** (`src/core/level-runtime.ts`): `reading` + `setReading(bool)` e `isClockRunning()` (= `isBoardActive() && !reading`); `tick` solo suma si el reloj corre. Leer **no cambia reglas**: `isBoardActive()` no cambia (pista y toques siguen igual; los toques sobre el tablero ya los ataja la capa de la 13.6).
+2. **UI** (`src/ui/game-ui.ts`): `onReadingChange(listener)`; la tarjeta real avisa `true` al desplegar "Ver más" y `false` al cerrarlo por cualquier vía ("Ver menos", toque fuera, tarjeta nueva o `clearOverlays`).
+3. **Escena** (`src/scenes/LevelScene.ts`): registra el aviso en `create` (y lo quita al apagar la escena); mientras se lee, el reloj se detiene y aparece un **⏸** (dos barras dibujadas, color del texto de la barra) a la izquierda del tiempo.
+4. Pruebas en `tests/level-runtime.test.ts` (el reloj no avanza leyendo y vuelve a correr al cerrar; leer no bloquea el tablero). Verificado en el navegador integrado a 360×740. `npm test` y `npm run build` pasan. No se hace git commit ni push.
+
+---
+
+### [ ] Tarea 19 — Mandy: guía de introducción y consejos en el momento
+
+**Lee:** `AGENTS.md` §2.7 (no inventar contenido de AWS), §5 y §6; §3.3 y §3.4 del diseño (ficha libre y toques).
+
+Feedback del usuario: un amigo probó el juego y no entendía por qué no podía tocar las fichas del medio (encerradas por los lados) ni había notado el tiempo. Como en los juegos tipo anime, un personaje-guía que aparece como "sticker" con un globo de diálogo debe explicar el contexto. **Mandy aparece sola**: no hay botón para abrir la guía, solo un botón para **saltarla**.
+
+1. **Mandy (personaje): sticker estilo anime** (decisión del usuario), como los personajes que hablan en juegos tipo Yu-Gi-Oh! (Duel Links): retrato de busto con contorno blanco de sticker y sombra suave, que aparece sobre un **cuadro de diálogo** abajo. Personaje **original**: no se copia ni se calca ningún personaje ni arte de Yu-Gi-Oh! ni de otro juego, y no se descargan imágenes de internet. Al menos 3 expresiones (contenta, explicando, sorprendida) para acompañar cada mensaje. **Arte (pendiente de decisión del usuario):** (A) dibujada con código en SVG, estilo anime chibi, o (B) ilustración propia del usuario (PNG con fondo transparente en `public/mandy/`, una por expresión, con derechos del usuario). Vive en un único componente para poder cambiar el arte sin tocar la lógica.
+   - **Cuadro de diálogo** estilo novela visual: el texto aparece letra por letra (un toque lo completa y otro avanza), indicador "▶" de siguiente y "Saltar guía" siempre visible. Colores de la Tarea 18 (nogal y marfil).
+2. **Introducción automática:** al abrir el juego por primera vez, Mandy aparece sola y empieza la guía. Siempre está visible el botón **"Saltar guía"**. Al terminarla o saltarla se guarda (localStorage con try/catch, dentro del guardado `aws-mahjong:v1` sin romper los guardados viejos) y no vuelve a aparecer. Si se cierra el juego a mitad de la guía, en el siguiente inicio vuelve a empezar.
+3. **Lección guiada en un mini tablero** (aprender haciendo, con las reglas reales del core: `isFree`, `blockReason`, `blockers`; nada de reglas especiales):
+   1. Parejas: el ícono de un servicio va con la ficha de su nombre.
+   2. Ficha encerrada: fila de 3 fichas, Mandy pide tocar la del medio; no se puede, se marcan en rojo las de los lados (Tarea 13.4) y explica que necesita un lado libre.
+   3. Ficha tapada: una ficha encima de otra; la de abajo no se puede tocar hasta quitar la de arriba.
+   4. Primera pareja y la pregunta "¿Para qué sirve…?".
+   5. Estrellas y tiempo (cómo se ganan), pista (máximo 3, cuesta 50 puntos) y botón "Menú".
+   Cada paso: Mandy habla y espera la acción pedida o un toque en "Siguiente". Los servicios de la demo salen del catálogo (no se inventan).
+4. **Consejos en el momento** (durante los niveles): Mandy aparece **una sola vez** la primera vez que ocurre algo nuevo: primer toque a una ficha bloqueada (con su motivo), primer tablero con pisos, primera respuesta incorrecta y primera vez que se pasa el tiempo de ★★★. Se cierra con un toque, no vuelve a salir (se guarda cuáles ya se vieron) y, mientras está visible, el reloj del tablero se pausa (no se castiga leer, §11.1).
+5. **Textos:** Mandy solo explica el juego. Cualquier texto sobre servicios de AWS sale del catálogo o lo entrega el usuario (`AGENTS.md` §2.7).
+6. **No cambia:** las reglas, la posición fija del tablero (13.6), el resaltado rojo (13.4), la pista (15), el estilo de la Tarea 18 ni el mínimo de letra (el globo de Mandy también ≥ 13 px reales a 360 px). Mandy nunca tapa las fichas que pide tocar.
+7. **Lógica pura en `src/core`** (pasos de la guía, qué consejos ya se vieron, cuándo toca cada uno) con pruebas en `tests/`; la escena y la UI solo dibujan y reenvían toques.
+8. Verificado en 360×740 y en PC: primer inicio con guía completa, "Saltar guía", reinicio sin guía y cada consejo en el momento una sola vez. `npm test` y `npm run build` pasan. No se hace git commit ni push.

@@ -364,6 +364,18 @@ function reviewBackdrop(): HTMLElement {
 function hideReviewBackdrop(): void {
   backdropEl?.classList.add('hidden');
   collapseReview = null;
+  readingListener?.(false);
+}
+
+/** Aviso a la escena de que se abre o cierra "Ver más" (Tarea 18.2). */
+let readingListener: ((reading: boolean) => void) | null = null;
+
+/**
+ * Registra quién se entera de que el jugador abrió o cerró "Ver más" en la
+ * tarjeta real: la escena pausa el reloj mientras se lee (Tarea 18.2).
+ */
+export function onReadingChange(listener: ((reading: boolean) => void) | null): void {
+  readingListener = listener;
 }
 
 function reviewCard(): HTMLElement {
@@ -580,6 +592,7 @@ function fillReview(card: HTMLElement, data: ReviewData): void {
     if (expanded) {
       reviewBackdrop().classList.remove('hidden');
       collapseReview = () => setExpanded(false);
+      readingListener?.(true);
     } else {
       hideReviewBackdrop();
     }

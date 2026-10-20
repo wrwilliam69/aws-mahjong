@@ -102,6 +102,10 @@ const MIN_TEXT_CONDENSE = 0.75;
 const HUD_BG = 0x24170e;
 const HUD_LINE = 0x6e4c2f;
 const HUD_TEXT = '#f6eedc';
+/** ⏸ junto al reloj mientras se lee "Ver más" (Tarea 18.2), en px lógicos. */
+const PAUSE_ICON_W = 14;
+const PAUSE_ICON_H = 16;
+const PAUSE_ICON_GAP = 8;
 const TILE_MAX_FONT = 22;
 const NAME_TEXT = '#2b2118';
 const SELECTED_STROKE = 0x00e5ff;
@@ -364,6 +368,8 @@ export class LevelScene extends Phaser.Scene {
 
   private scoreText!: Phaser.GameObjects.Text;
   private timeText!: Phaser.GameObjects.Text;
+  /** Dos barras ⏸ junto al reloj mientras se lee "Ver más" (Tarea 18.2). */
+  private pauseIcon!: Phaser.GameObjects.Graphics;
   private lastShownSeconds = -1;
   /** Botón "Pista" del pie (Tarea 15); se actualiza su contador al usarla. */
   private hintButton!: ui.HintButton;
@@ -440,7 +446,25 @@ export class LevelScene extends Phaser.Scene {
     // Pista (Tarea 15): máximo 3 por partida, también en Práctica libre.
     this.hintButton = ui.showHintButton(() => this.useHint());
     this.hintButton.setRemaining(this.rt.hintsRemaining());
+    // Leer "Ver más" detiene el reloj (Tarea 18.2): la UI avisa al abrir y cerrar.
+    ui.onReadingChange((reading) => this.setReading(reading));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => ui.onReadingChange(null));
     this.input.on('pointerdown', this.onPointerDown, this);
+  }
+
+  /** Pausa o reanuda el reloj por lectura y muestra u oculta el ⏸ (Tarea 18.2). */
+  private setReading(reading: boolean): void {
+    this.rt.setReading(reading);
+    this.pauseIcon.setVisible(reading);
+    if (reading) this.placePauseIcon();
+  }
+
+  /** Coloca el ⏸ a la izquierda del texto del reloj (su ancho cambia con el tiempo). */
+  private placePauseIcon(): void {
+    this.pauseIcon.setPosition(
+      this.timeText.x - this.timeText.width - PAUSE_ICON_GAP - PAUSE_ICON_W,
+      TOP_BAR_HEIGHT / 2 - PAUSE_ICON_H / 2,
+    );
   }
 
   update(_time: number, delta: number): void {
@@ -449,6 +473,7 @@ export class LevelScene extends Phaser.Scene {
     if (seconds !== this.lastShownSeconds) {
       this.lastShownSeconds = seconds;
       this.timeText.setText(formatTime(this.rt.boardTimeMs));
+      if (this.pauseIcon.visible) this.placePauseIcon();
     }
   }
 
@@ -479,6 +504,12 @@ export class LevelScene extends Phaser.Scene {
       })
       .setOrigin(1, 0.5)
       .setDepth(90001);
+    // Ícono de pausa con dos barras (sin emoji: se ve igual en todo celular).
+    const barW = Math.round(PAUSE_ICON_W * 0.36);
+    this.pauseIcon = this.add.graphics().setDepth(90001).setVisible(false);
+    this.pauseIcon.fillStyle(Phaser.Display.Color.HexStringToColor(HUD_TEXT).color, 1);
+    this.pauseIcon.fillRect(0, 0, barW, PAUSE_ICON_H);
+    this.pauseIcon.fillRect(PAUSE_ICON_W - barW, 0, barW, PAUSE_ICON_H);
   }
 
   /** Geometría del tablero a partir de los slots y el lienzo lógico. */

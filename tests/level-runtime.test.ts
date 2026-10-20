@@ -163,3 +163,25 @@ describe('PLAY-04: pareja válida', () => {
     expect(rt.selected).toBeNull();
   });
 });
+
+describe('Tarea 18.2: leer "Ver más" pausa el reloj', () => {
+  it('el reloj no avanza mientras se lee y vuelve a correr al cerrar', () => {
+    const rt = runtime(FREE_2X2, 'reading');
+    rt.tick(300);
+    rt.setReading(true);
+    expect(rt.isClockRunning()).toBe(false);
+    rt.tick(5000);
+    expect(rt.boardTimeMs).toBe(300);
+    rt.setReading(false);
+    expect(rt.isClockRunning()).toBe(true);
+    rt.tick(200);
+    expect(rt.boardTimeMs).toBe(500);
+  });
+
+  it('leer no cambia las reglas: el tablero sigue activo y se puede tocar', () => {
+    const rt = runtime(FREE_2X2, 'reading-rules');
+    rt.setReading(true);
+    expect(rt.isBoardActive()).toBe(true);
+    expect(rt.tap(0).type).toBe('select');
+  });
+});

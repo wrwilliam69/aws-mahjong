@@ -99,6 +99,11 @@ export class LevelRuntime {
   pending: Pair | null = null;
   /** Pistas usadas en la partida (§8.1); máximo `MAX_HINTS`. */
   hintsUsed = 0;
+  /**
+   * El jugador lee el panel "Ver más" (Tarea 18.2): el reloj se detiene, igual
+   * que con la pregunta abierta, para no castigar la lectura (§11.1).
+   */
+  reading = false;
 
   private readonly source: QuestionCatalog;
   private readonly rng: Rng;
@@ -142,12 +147,22 @@ export class LevelRuntime {
     return pair;
   }
 
-  /** Avanza el reloj del tablero solo si el tablero está activo (§11.1). */
+  /** Marca si el jugador está leyendo el panel "Ver más" (Tarea 18.2). */
+  setReading(reading: boolean): void {
+    this.reading = reading;
+  }
+
+  /** El reloj corre si el tablero está activo y nadie está leyendo "Ver más". */
+  isClockRunning(): boolean {
+    return this.isBoardActive() && !this.reading;
+  }
+
+  /** Avanza el reloj del tablero solo si el tablero está activo y no se lee (§11.1). */
   tick(ms: number): void {
     if (!Number.isFinite(ms) || ms < 0) {
       throw new RangeError(`tick: ms debe ser un número ≥ 0; recibido ${String(ms)}`);
     }
-    if (this.isBoardActive()) this.boardTimeMs += ms;
+    if (this.isClockRunning()) this.boardTimeMs += ms;
   }
 
   /** Un toque sobre una ficha (§9.2). Devuelve lo ocurrido para que la escena anime. */
