@@ -870,3 +870,219 @@ body {
 .confirm__btn--danger:active {
   background: var(--bad-press);
 }
+/* ------------------------------------------------------------------ */
+/* Interruptor "Consejos de Mandy" (Tarea 19.2): una fila más del menú, */
+/* con el mismo marco que los niveles, su carita y un switch.           */
+/* ------------------------------------------------------------------ */
+.menu__tips {
+  margin-top: calc(100cqw * 10 / 390);
+}
+
+.menu__tips-face {
+  overflow: hidden;
+  background: var(--ivory-soft);
+}
+
+.menu__tips-face .mandy__svg {
+  width: 150%;
+  height: 150%;
+  margin-top: 30%;
+}
+
+.switch {
+  flex: none;
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: calc(100cqw * 64 / 390);
+  height: calc(100cqw * 32 / 390);
+  border-radius: calc(100cqw * 16 / 390);
+  border: 2px solid var(--line);
+  background: var(--panel-deep);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.switch__label {
+  position: absolute;
+  right: calc(100cqw * 9 / 390);
+  font-size: calc(100cqw * 14 / 390);
+  font-weight: bold;
+  color: var(--ivory-muted);
+}
+
+.switch__knob {
+  position: absolute;
+  left: calc(100cqw * 3 / 390);
+  width: calc(100cqw * 22 / 390);
+  height: calc(100cqw * 22 / 390);
+  border-radius: 50%;
+  background: var(--ivory-dim);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: left 0.15s, background 0.15s;
+}
+
+.switch--on {
+  background: var(--jade);
+  border-color: var(--jade);
+}
+
+.switch--on .switch__label {
+  right: auto;
+  left: calc(100cqw * 10 / 390);
+  color: var(--ivory);
+}
+
+.switch--on .switch__knob {
+  left: calc(100% - 100cqw * 25 / 390);
+  background: var(--ivory);
+}
+
+/* ------------------------------------------------------------------ */
+/* Mandy (Tareas 19 y 19.2): sticker anime sobre un cuadro de diálogo   */
+/* tipo novela visual, abajo del marco. La capa recibe todos los toques */
+/* (un toque completa el texto, otro avanza) y oscurece un poco el      */
+/* tablero sin taparlo.                                                 */
+/* ------------------------------------------------------------------ */
+.mandy {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: rgba(20, 11, 4, 0.35);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mandy__stage {
+  position: absolute;
+  left: calc(100cqw * 12 / 390);
+  right: calc(100cqw * 12 / 390);
+  bottom: calc(100cqw * 14 / 390);
+}
+
+/* Sticker: contorno blanco y sombra suave (sirve igual para el SVG y para un
+   PNG propio con fondo transparente). */
+.mandy__sticker {
+  position: absolute;
+  left: calc(100cqw * 2 / 390);
+  bottom: calc(100% - 100cqw * 10 / 390);
+  width: calc(100cqw * 132 / 390);
+  height: calc(100cqw * 145 / 390);
+  pointer-events: none;
+  animation: mandy-pop 0.22s ease-out;
+}
+
+.mandy__art,
+.mandy__art .mandy__svg,
+.mandy__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom;
+}
+
+.mandy__art {
+  filter: drop-shadow(2.5px 0 0 #fff) drop-shadow(-2.5px 0 0 #fff) drop-shadow(0 2.5px 0 #fff)
+    drop-shadow(0 -2.5px 0 #fff) drop-shadow(0 5px 6px rgba(0, 0, 0, 0.45));
+}
+
+@keyframes mandy-pop {
+  from {
+    transform: translateY(8%) scale(0.94);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.mandy__dialog {
+  position: relative;
+  min-height: calc(100cqw * 118 / 390);
+  box-sizing: border-box;
+  padding: calc(100cqw * 22 / 390) calc(100cqw * 16 / 390) calc(100cqw * 26 / 390);
+  border-radius: calc(100cqw * 14 / 390);
+  border: 2px solid var(--gold-dark);
+  /* Doble marco tipo novela visual: línea marfil fina por dentro. */
+  box-shadow:
+    inset 0 0 0 3px var(--panel-solid),
+    inset 0 0 0 4px rgba(246, 238, 220, 0.35),
+    0 6px 18px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel-solid));
+  color: var(--ivory);
+}
+
+.mandy__name {
+  position: absolute;
+  top: calc(100cqw * -14 / 390);
+  left: calc(100cqw * 140 / 390);
+  padding: calc(100cqw * 3 / 390) calc(100cqw * 14 / 390);
+  border-radius: calc(100cqw * 8 / 390);
+  border: 2px solid var(--gold-dark);
+  background: var(--gold);
+  color: var(--panel-solid);
+  font-size: calc(100cqw * 15 / 390);
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.mandy__text {
+  margin: 0;
+  min-height: 2.8em;
+  font-size: calc(100cqw * 16 / 390);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.mandy__next {
+  position: absolute;
+  right: calc(100cqw * 14 / 390);
+  bottom: calc(100cqw * 6 / 390);
+  font-size: calc(100cqw * 15 / 390);
+  color: var(--gold);
+  animation: mandy-next 0.9s ease-in-out infinite;
+}
+
+.mandy__next--hidden {
+  visibility: hidden;
+}
+
+@keyframes mandy-next {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(3px);
+    opacity: 0.55;
+  }
+}
+
+/* "Saltar guía": siempre visible arriba a la derecha del cuadro. */
+.mandy__skip {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 100cqw * 10 / 390);
+  min-height: calc(100cqw * 40 / 390);
+  padding: 0 calc(100cqw * 14 / 390);
+  border-radius: calc(100cqw * 20 / 390);
+  border: 2px solid var(--brass);
+  background: var(--panel-solid);
+  color: var(--ivory);
+  font-family: inherit;
+  font-size: calc(100cqw * 15 / 390);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.mandy__skip:active {
+  background: var(--panel-press);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mandy__sticker,
+  .mandy__next {
+    animation: none;
+  }
+}

@@ -586,7 +586,9 @@ Comentario de un jugador: al abrir "Ver más" para leer la explicación completa
 
 ---
 
-### [ ] Tarea 19 — Mandy: guía de introducción y consejos en el momento
+### [x] Tarea 19 — Mandy: guía de introducción y consejos en el momento
+
+> **Nota (Tarea 19.2):** la primera versión de esta tarea quedó incompleta (Mandy no aparecía en ningún lado). La 19.2 construyó lo que describe esta tarea **salvo el punto 3** (mini tablero guiado), que pasa a la **Tarea 19.3**; mientras tanto, la guía explica las mismas reglas sobre el tablero real del primer nivel.
 
 **Lee:** `AGENTS.md` §2.7 (no inventar contenido de AWS), §5 y §6; §3.3 y §3.4 del diseño (ficha libre y toques).
 
@@ -607,3 +609,31 @@ Feedback del usuario: un amigo probó el juego y no entendía por qué no podía
 6. **No cambia:** las reglas, la posición fija del tablero (13.6), el resaltado rojo (13.4), la pista (15), el estilo de la Tarea 18 ni el mínimo de letra (el globo de Mandy también ≥ 13 px reales a 360 px). Mandy nunca tapa las fichas que pide tocar.
 7. **Lógica pura en `src/core`** (pasos de la guía, qué consejos ya se vieron, cuándo toca cada uno) con pruebas en `tests/`; la escena y la UI solo dibujan y reenvían toques.
 8. Verificado en 360×740 y en PC: primer inicio con guía completa, "Saltar guía", reinicio sin guía y cada consejo en el momento una sola vez. `npm test` y `npm run build` pasan. No se hace git commit ni push.
+
+---
+
+### [x] Tarea 19.1 — Recalibración del reloj y arreglo del ⏸
+
+**Haz:**
+3. Recalibra la meta de tiempo del reloj: ★★★ ≈ 10 s por pareja y ★★ ≈ 16 s por pareja (el tiempo de las preguntas y de "Ver más" sigue sin contar). Deja los valores en constantes fáciles de cambiar y actualiza las pruebas.
+4. Arregla que en partidas de más de 10 minutos el ícono ⏸ del reloj quede pegado al botón "Menú".
+
+**Lista cuando:** `npm test` y `npm run build` pasan.
+
+---
+
+### [x] Tarea 19.2 — Arreglos visuales de Mandy y del interruptor de consejos
+
+Problemas que vio el usuario: Mandy no aparecía en ningún lado y el interruptor "Consejos de Mandy: Sí" tenía el estilo por defecto del navegador. **Causa:** la Tarea 19 solo había dejado una función `showMandy` que nadie llamaba, sin CSS, sin lógica en `src/core` ni pruebas. **Decisión del usuario:** completar Mandy en esta tarea, sin el mini tablero (queda en la 19.3).
+
+1. **Core** (`src/core/mandy.ts`, pruebas en `tests/mandy.test.ts`): textos de la guía (`GUIDE_MENU`, `GUIDE_BOARD`) y de los consejos (`TIPS`), con su expresión; `tipForEvent`/`tipToShow` (cada consejo una sola vez, con el interruptor prendido y la guía ya terminada) y el estado `{ guideDone, tipsEnabled, seenTips }`. Se guarda en el campo opcional `mandy` de `aws-mahjong:v1` (`progress.ts`: `mandyOf`, `withMandy`; las demás escrituras del guardado lo conservan y los guardados viejos siguen funcionando). Se quitaron las claves sueltas de localStorage de la 19.
+2. **Dónde aparece:** (a) en el **menú**, la primera vez, se presenta (2 mensajes); (b) al entrar al **primer nivel** sigue la guía sobre el tablero real (parejas, encerrada, tapada, pregunta y "Ver más", reloj/meta, pista). "Saltar guía" siempre visible; al terminar o saltar se guarda y no vuelve. (c) **Consejos en el momento:** primer toque a una ficha encerrada (`blocked-sides`) o tapada (`blocked-above`, consejos separados para que la explicación de los lados salga aunque el primer toque sea a una tapada), primer tablero con pisos, primera respuesta incorrecta y primera vez que se pasa la meta de ★★★. Mientras Mandy habla, el reloj se pausa con ⏸ (igual que "Ver más"). Saltar la guía **no** apaga los consejos: eso lo hace el interruptor.
+3. **Cómo se ve** (`src/ui/mandy.ts`, `src/ui/ui.css`): sticker chibi dibujado con SVG (personaje original: cabello castaño con flequillo y mechones, ojos grandes jade con brillos, rubor, chaqueta jade con cuello marfil y moño de latón, broche jade en el pelo) con contorno blanco de sticker y sombra suave; 3 expresiones (contenta con ojos cerrados, explicando, sorprendida con gota). Si existe `public/mandy/<expresión>.png` (arte propio del usuario) se usa en su lugar con el mismo contorno; si falta, se usa el SVG. Cuadro de diálogo tipo novela visual en nogal con doble marco latón/marfil, etiqueta "Mandy" en oro, texto marfil de 16 px lógicos letra por letra (un toque completa, otro avanza; ▶ parpadea), "Saltar guía" en píldora con borde latón. La capa oscurece un poco el tablero y recibe los toques (no se toca una ficha por accidente).
+4. **Interruptor** del menú: una fila más con el mismo marco que los niveles (carita de Mandy en el círculo, "Consejos de Mandy" y un switch jade "Sí"/nogal "No"), alineado con la lista.
+5. Verificado en el navegador integrado a 360×740 y 1366×768: guía en menú y nivel 1, "Saltar guía" (se guarda y el reloj se reanuda), guía completa, reinicio sin guía, consejo de ficha encerrada una sola vez y el interruptor apagando y prendiendo los consejos. `npm test` y `npm run build` pasan. No se hace git commit ni push.
+
+---
+
+### [ ] Tarea 19.3 — Mini tablero guiado de Mandy
+
+Punto 3 de la Tarea 19: lección en un mini tablero aparte (aprender haciendo con las reglas reales del core): pareja ícono–nombre, ficha encerrada en una fila de 3 (se marcan en rojo las de los lados), ficha tapada, primera pareja con su pregunta y, al final, estrellas/tiempo/pista/"Menú". Mandy nunca tapa las fichas que pide tocar. Reemplaza los mensajes de `GUIDE_BOARD` sobre el tablero real.

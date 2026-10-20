@@ -21,7 +21,7 @@ describe('puntos por pareja (§11.2 base)', () => {
 describe('tiempo par (§11.3)', () => {
   it('crece con las parejas, el número de capas y los servicios nuevos', () => {
     const base = parTimeMs(6, 4, 1, 0);
-    expect(base).toBeCloseTo(6 * (1500 + 6000 / 4), 6);
+    expect(base).toBeCloseTo(6 * (5000 + 20000 / 4), 6);
     expect(parTimeMs(6, 4, 3, 0)).toBeGreaterThan(base);
     expect(parTimeMs(6, 4, 1, 2)).toBe(base + 2 * 2500);
     // Más parejas disponibles ⇒ menos par (se busca menos).

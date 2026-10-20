@@ -157,7 +157,7 @@ describe('buildResults', () => {
     const res = buildResults({
       setup,
       points: 600,
-      boardTimeMs: 9500,
+      boardTimeMs: 30001,
       errors: 0,
       failedServiceIds: ['b-svc'],
     });
@@ -180,7 +180,7 @@ describe('buildResults', () => {
 });
 
 function parForSetup(): number {
-  return 2 * (1500 + 6000 / 2) * (1 + 0.1 * (1 - 1)) + 0;
+  return 2 * (5000 + 20000 / 2) * (1 + 0.1 * (1 - 1)) + 0;
 }
 describe('Tarea 18.1: meta de tiempo en el reloj', () => {
   it('levelParMs es el mismo par que usan los resultados', () => {

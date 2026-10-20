@@ -7,8 +7,8 @@ export const BASE_POINTS = 100; // puntos por pareja (§15)
 export const LAYER_POINTS = 15; // por la capa más alta de la pareja
 export const ANSWER_POINTS = 50; // si la respuesta fue correcta
 
-export const T_BASE = 1500; // ms; CALIBRAR con jugadores (§11.3)
-export const T_SEARCH = 6000; // ms; CALIBRAR con jugadores (§11.3)
+export const T_BASE = 5000; // ms; CALIBRAR con jugadores (§11.3) — ★★★ ≈ 10 s por pareja
+export const T_SEARCH = 20000; // ms; CALIBRAR con jugadores (§11.3)
 export const T_NEW = 2500; // ms por servicio nuevo del nivel (§11.3)
 export const STAR2_TIME_FACTOR = 1.6; // ★2 admite hasta 1,6 × par de tiempo
 

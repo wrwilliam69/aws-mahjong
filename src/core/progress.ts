@@ -5,6 +5,7 @@
 // puntos y mejor tiempo (el tiempo es el menor).
 import { LEVELS } from '../data/levels';
 import { parseServiceStat, recordAnswer, type ServiceStat } from './memory';
+import { parseMandyState, type MandyState } from './mandy';
 
 export const SAVE_KEY = 'aws-mahjong:v1';
 export const SAVE_VERSION = 1;
@@ -25,6 +26,8 @@ export interface SaveData {
   levelCounter: number;
   /** Estadísticas por servicio (Tarea 16): aciertos, fallos y última partida. */
   memory: Record<string, ServiceStat>;
+  /** Guía y consejos de Mandy (Tarea 19.2); opcional: los guardados viejos no lo traen. */
+  mandy?: MandyState;
 }
 
 /** Resultado de una partida apenas terminada, antes de combinarlo con el récord. */
@@ -69,7 +72,7 @@ export function mergeLevelRun(save: SaveData, levelId: string, run: LevelRun): S
           timeMs: Math.min(prev.timeMs, run.timeMs),
         };
   return {
-    version: save.version,
+    ...save,
     levelCounter: save.levelCounter,
     memory: save.memory,
     levels: { ...save.levels, [levelId]: record },
@@ -86,7 +89,7 @@ export function beginGame(save: SaveData): { gameNumber: number; save: SaveData 
   return {
     gameNumber,
     save: {
-      version: save.version,
+      ...save,
       levels: save.levels,
       levelCounter: gameNumber,
       memory: save.memory,
@@ -106,7 +109,7 @@ export function recordServiceAnswer(
 ): SaveData {
   const stat = recordAnswer(save.memory[serviceId], correct, gameNumber);
   return {
-    version: save.version,
+    ...save,
     levels: save.levels,
     levelCounter: save.levelCounter,
     memory: { ...save.memory, [serviceId]: stat },
@@ -165,5 +168,19 @@ export function parseSave(raw: unknown): SaveData {
       if (stat !== null) memory[serviceId] = stat;
     }
   }
+  // Tarea 19.2: el estado de Mandy solo se guarda si ya existía.
+  if (raw.mandy !== undefined) {
+    return { version: SAVE_VERSION, levels, levelCounter, memory, mandy: parseMandyState(raw.mandy) };
+  }
   return { version: SAVE_VERSION, levels, levelCounter, memory };
+}
+
+/** Estado de Mandy del guardado; uno nuevo si todavía no existe (Tarea 19.2). */
+export function mandyOf(save: SaveData): MandyState {
+  return save.mandy ?? parseMandyState(undefined);
+}
+
+/** El guardado con el estado de Mandy reemplazado; el resto no cambia. */
+export function withMandy(save: SaveData, mandy: MandyState): SaveData {
+  return { ...save, mandy };
 }

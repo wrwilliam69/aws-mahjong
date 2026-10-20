@@ -5,6 +5,8 @@
 // fijo a la ventana) y escala con unidades cqw del marco.
 import './ui.css';
 import { CARD_HEIGHT_RATIO, HINT_BAR_HEIGHT, LOGICAL_WIDTH, TOP_BAR_HEIGHT } from './layout';
+import { finishGuide, GUIDE_MENU, shouldShowGuide, withTipsEnabled } from '../core/mandy';
+import { loadMandy, mandySvg, removeMandy, saveMandy, showMandy } from './mandy';
 
 // Reexportadas para que la escena (LevelScene.ts) use las mismas constantes.
 export { CARD_HEIGHT_RATIO, HINT_BAR_HEIGHT, TOP_BAR_HEIGHT };
@@ -82,6 +84,7 @@ export function clearOverlays(): void {
   removeLevelMenuButton();
   removeHintButton();
   hideReviewBackdrop();
+  removeMandy();
 }
 
 function shake(el: HTMLElement): void {
@@ -185,6 +188,40 @@ export function showMenu(callbacks: {
 
   menu.appendChild(list);
 
+  // Tarea 19.2: interruptor de consejos de Mandy, una fila más del menú (mismo
+  // marco que los niveles) con su carita y un switch jade/nogal.
+  const tipsRow = document.createElement('button');
+  tipsRow.type = 'button';
+  tipsRow.className = 'menu__row menu__row--open menu__tips';
+  tipsRow.setAttribute('role', 'switch');
+  const tipsFace = document.createElement('span');
+  tipsFace.className = 'menu__num menu__tips-face';
+  tipsFace.innerHTML = mandySvg('happy');
+  const tipsLabel = document.createElement('span');
+  tipsLabel.className = 'menu__theme';
+  tipsLabel.textContent = 'Consejos de Mandy';
+  const tipsSwitch = document.createElement('span');
+  tipsSwitch.className = 'switch';
+  tipsSwitch.setAttribute('aria-hidden', 'true');
+  const tipsState = document.createElement('span');
+  tipsState.className = 'switch__label';
+  const knob = document.createElement('span');
+  knob.className = 'switch__knob';
+  tipsSwitch.append(tipsState, knob);
+  const renderTips = (enabled: boolean): void => {
+    tipsRow.setAttribute('aria-checked', String(enabled));
+    tipsSwitch.classList.toggle('switch--on', enabled);
+    tipsState.textContent = enabled ? 'Sí' : 'No';
+  };
+  tipsRow.addEventListener('click', () => {
+    const next = withTipsEnabled(loadMandy(), !loadMandy().tipsEnabled);
+    saveMandy(next);
+    renderTips(next.tipsEnabled);
+  });
+  renderTips(loadMandy().tipsEnabled);
+  tipsRow.append(tipsFace, tipsLabel, tipsSwitch);
+  menu.appendChild(tipsRow);
+
   // Tarea 17: atribución de los íconos oficiales, al pie del menú y en letra
   // pequeña (ver también README.md).
   const attribution = document.createElement('p');
@@ -192,6 +229,19 @@ export function showMenu(callbacks: {
   attribution.textContent =
     'Íconos: AWS Architecture Icons. AWS y sus logos son marcas de Amazon.com, Inc. o sus filiales. Proyecto personal de estudio, sin relación con AWS.';
   menu.appendChild(attribution);
+
+  // Tarea 19.2: la primera vez, Mandy se presenta sola en el menú. "Saltar guía"
+  // la termina; si no, la guía sigue en el tablero del primer nivel.
+  const mandy = loadMandy();
+  if (shouldShowGuide(mandy)) {
+    showMandy({
+      lines: GUIDE_MENU,
+      skippable: true,
+      onClose: (skipped) => {
+        if (skipped) saveMandy(finishGuide(loadMandy()));
+      },
+    });
+  }
 }
 
 /**

@@ -41,6 +41,17 @@ import {
   type LevelDef,
 } from '../data/levels';
 import * as ui from '../ui/game-ui';
+import {
+  finishGuide,
+  GUIDE_BOARD,
+  markTipSeen,
+  shouldShowGuide,
+  TIPS,
+  tipToShow,
+  type MandyLine,
+  type TipEvent,
+} from '../core/mandy';
+import { loadMandy, saveMandy, showMandy } from '../ui/mandy';
 import { onQuestion } from '../ui/question';
 import { nextSeed } from '../ui/seed';
 
@@ -389,6 +400,11 @@ export class LevelScene extends Phaser.Scene {
   private lastShownSeconds = -1;
   /** Meta de ★★★ del tablero (par de §11.3), la misma de los resultados (Tarea 18.1). */
   private parMs = 0;
+  /** "Ver más" abierto (18.2) y Mandy hablando (19.2): ambos pausan el reloj. */
+  private reviewReading = false;
+  private mandyOpen = false;
+  /** El consejo de "pasaste la meta de ★★★" ya se evaluó en esta partida. */
+  private overTimeChecked = false;
   /** Botón "Pista" del pie (Tarea 15); se actualiza su contador al usarla. */
   private hintButton!: ui.HintButton;
 
@@ -423,6 +439,9 @@ export class LevelScene extends Phaser.Scene {
     this.initialPaint = true;
     this.useFilter = null;
     this.lastShownSeconds = -1;
+    this.reviewReading = false;
+    this.mandyOpen = false;
+    this.overTimeChecked = false;
     this.failedIconTextures = new Set();
     this.serviceById = new Map(catalog.services.map((s) => [s.id, s]));
     this.categoryById = new Map(catalog.categories.map((c) => [c.id, c]));
@@ -470,25 +489,90 @@ export class LevelScene extends Phaser.Scene {
     ui.onReadingChange((reading) => this.setReading(reading));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => ui.onReadingChange(null));
     this.input.on('pointerdown', this.onPointerDown, this);
+    this.startMandy();
   }
 
-  /** Pausa o reanuda el reloj por lectura y muestra u oculta el ⏸ (Tarea 18.2). */
+  /** "Ver más" abierto o cerrado (Tarea 18.2). */
   private setReading(reading: boolean): void {
-    this.rt.setReading(reading);
-    this.pauseIcon.setVisible(reading);
-    if (reading) this.placePauseIcon();
+    this.reviewReading = reading;
+    this.syncReadingPause();
   }
 
-  /** Coloca el ⏸ a la izquierda del texto del reloj (su ancho cambia con el tiempo). */
+  /**
+   * El reloj se pausa (con ⏸) mientras se lee "Ver más" (18.2) o mientras Mandy
+   * habla (Tarea 19.2): leer no se castiga (§11.1).
+   */
+  private syncReadingPause(): void {
+    const paused = this.reviewReading || this.mandyOpen;
+    this.rt.setReading(paused);
+    this.pauseIcon.setVisible(paused);
+    if (paused) this.placePauseIcon();
+  }
+
+  /** Mandy habla; al cerrarse se reanuda el reloj y se llama `onClose`. */
+  private openMandy(lines: readonly MandyLine[], skippable: boolean, onClose: (skipped: boolean) => void): void {
+    this.mandyOpen = true;
+    this.syncReadingPause();
+    showMandy({
+      lines,
+      skippable,
+      onClose: (skipped) => {
+        this.mandyOpen = false;
+        this.syncReadingPause();
+        onClose(skipped);
+      },
+    });
+  }
+
+  /** Muestra un consejo de Mandy si toca (una sola vez, con el interruptor prendido). */
+  private maybeTip(event: TipEvent): void {
+    if (this.mandyOpen || this.finished) return;
+    const state = loadMandy();
+    const tip = tipToShow(state, event);
+    if (tip === null) return;
+    saveMandy(markTipSeen(state, tip));
+    this.openMandy([TIPS[tip]], false, () => {});
+  }
+
+  /**
+   * Tarea 19.2: la primera vez, la guía sigue sobre el tablero del nivel (solo en
+   * la campaña). Después, el consejo de tablero con pisos si corresponde.
+   */
+  private startMandy(): void {
+    const levelStart: TipEvent = { type: 'level-start', layers: this.setup.metrics.layers };
+    if (this.levelData.level !== null && shouldShowGuide(loadMandy())) {
+      this.openMandy(GUIDE_BOARD, true, () => {
+        saveMandy(finishGuide(loadMandy()));
+        this.maybeTip(levelStart);
+      });
+      return;
+    }
+    this.maybeTip(levelStart);
+  }
+
+  /** Coloca el ⏸ a la izquierda del texto del reloj (su ancho cambia con el tiempo).
+   *  En partidas largas el texto se ensancha y el icono no debe invadir la zona
+   *  del botón "Menú" (centrado arriba). */
   private placePauseIcon(): void {
+    const desired =
+      this.timeText.x - this.timeText.width - PAUSE_ICON_GAP - PAUSE_ICON_W;
+    const minLeft = this.scale.width / 2 + 40;
     this.pauseIcon.setPosition(
-      this.timeText.x - this.timeText.width - PAUSE_ICON_GAP - PAUSE_ICON_W,
+      Math.max(desired, minLeft),
       TOP_BAR_HEIGHT / 2 - PAUSE_ICON_H / 2,
     );
   }
 
   update(_time: number, delta: number): void {
     this.rt.tick(delta);
+    // Tarea 19.2: consejo la primera vez que se pasa la meta de ★★★.
+    if (!this.overTimeChecked && this.rt.isClockRunning()) {
+      const status = timeGoalStatus(this.rt.boardTimeMs, this.parMs);
+      if (status !== 'star3') {
+        this.overTimeChecked = true;
+        this.maybeTip({ type: 'time', status });
+      }
+    }
     const seconds = Math.floor(this.rt.boardTimeMs / 1000);
     if (seconds !== this.lastShownSeconds) {
       this.lastShownSeconds = seconds;
@@ -1090,6 +1174,7 @@ export class LevelScene extends Phaser.Scene {
         const reason = blockReason(this.rt.g, this.rt.present, result.slot);
         this.highlightBlockers(blockers(this.rt.g, this.rt.present, result.slot));
         ui.showBlockedTileHint(reason === 'above' ? 'above' : 'sides');
+        this.maybeTip({ type: 'blocked', reason: reason === 'above' ? 'above' : 'sides' });
         return;
       }
       case 'select':
@@ -1239,7 +1324,11 @@ export class LevelScene extends Phaser.Scene {
       ),
     );
 
-    if (this.rt.isComplete()) this.onLevelComplete();
+    if (this.rt.isComplete()) {
+      this.onLevelComplete();
+      return;
+    }
+    if (!answer.correct) this.maybeTip({ type: 'wrong-answer' });
   }
 
   private onLevelComplete(): void {
