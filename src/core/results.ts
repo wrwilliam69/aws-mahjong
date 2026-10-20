@@ -117,17 +117,32 @@ export interface BuildResultsInput {
   hintsUsed?: number;
 }
 
+/**
+ * Tiempo par (meta de ★★★) de un tablero (§11.3). Lo usan los resultados y el
+ * reloj de la barra (Tarea 18.1), así ambos muestran la misma meta.
+ */
+export function levelParMs(setup: BoardSetup, newServices = 0): number {
+  return parTimeMs(setup.tiles.length / 2, setup.metrics.Abar, setup.metrics.layers, newServices);
+}
+
+/**
+ * En qué tramo de tiempo va el jugador (Tarea 18.1): `star3` dentro del par,
+ * `star2` hasta 1,6 × par y `over` después. Solo mira el tiempo, no los errores.
+ */
+export type TimeGoalStatus = 'star3' | 'star2' | 'over';
+
+export function timeGoalStatus(boardTimeMs: number, parMs: number): TimeGoalStatus {
+  if (boardTimeMs <= parMs) return 'star3';
+  if (boardTimeMs <= STAR2_TIME_FACTOR * parMs) return 'star2';
+  return 'over';
+}
+
 /** Resultados de un nivel completado: estrellas y criterio que faltó. */
 export function buildResults(input: BuildResultsInput): ResultsData {
   const newServices = input.newServices ?? 0;
   const E3 = input.E3 ?? errorLimitFor3Stars(input.setup.tier);
   const pairs = input.setup.tiles.length / 2;
-  const parMs = parTimeMs(
-    pairs,
-    input.setup.metrics.Abar,
-    input.setup.metrics.layers,
-    newServices,
-  );
+  const parMs = levelParMs(input.setup, newServices);
   const earned = stars({
     complete: true,
     boardTimeMs: input.boardTimeMs,

@@ -564,6 +564,17 @@ Referencia del usuario: un Mahjong móvil comercial con fichas de marfil tipo bl
 
 ---
 
+### [x] Tarea 18.1 — El reloj muestra la meta de ★★★
+
+Comentario de un jugador: no había visto el tiempo y no sabía que contaba para las estrellas.
+
+1. **Core** (`src/core/results.ts`): `levelParMs(setup, newServices)` (el par de §11.3, ahora compartido por `buildResults` y la barra) y `timeGoalStatus(boardTimeMs, parMs)` → `'star3'` (≤ par), `'star2'` (≤ 1,6 × par) u `'over'`. Solo mira el tiempo; los errores siguen contando solo en los resultados.
+2. **Escena** (`src/scenes/LevelScene.ts`): el reloj de la barra muestra **tiempo / meta** ("0:32 / 0:49") en **verde** dentro de la meta de ★★★, **ámbar** hasta el límite de ★★ y **rojo** después (tonos claros sobre el nogal). Se ve igual en campaña y en Práctica libre. El ⏸ de la 18.2 sigue a la izquierda.
+3. Sin cambios en el cálculo de estrellas ni en la calibración de `T_BASE`/`T_SEARCH`.
+4. Pruebas en `tests/results.test.ts` (mismo par que los resultados y los tres tramos con sus bordes). Verificado en el navegador integrado a 360×740. `npm test` y `npm run build` pasan.
+
+---
+
 ### [x] Tarea 18.2 — Leer "Ver más" no gasta tiempo
 
 Comentario de un jugador: al abrir "Ver más" para leer la explicación completa, el reloj seguía corriendo y por eso no subía la estrella. Mismo principio que la pregunta (§11.1, "no castigar leer").

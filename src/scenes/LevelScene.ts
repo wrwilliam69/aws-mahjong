@@ -19,7 +19,14 @@ import { selectPractice } from '../core/practice';
 import { bestStarsOf, beginGame, mergeLevelRun, recordServiceAnswer, type LevelRun } from '../core/progress';
 import type { Question } from '../core/questions';
 import { buildReviewData } from '../core/review';
-import { buildResults, errorLimitFor3Stars, failedServiceIds } from '../core/results';
+import {
+  buildResults,
+  errorLimitFor3Stars,
+  failedServiceIds,
+  levelParMs,
+  timeGoalStatus,
+  type TimeGoalStatus,
+} from '../core/results';
 import { makeRng } from '../core/rng';
 import { pairPoints } from '../core/scoring';
 import { isPairFree } from '../core/solve';
@@ -106,6 +113,15 @@ const HUD_TEXT = '#f6eedc';
 const PAUSE_ICON_W = 14;
 const PAUSE_ICON_H = 16;
 const PAUSE_ICON_GAP = 8;
+/**
+ * Color del reloj según el tramo de tiempo (Tarea 18.1): verde dentro de la meta
+ * de ★★★, ámbar hasta el límite de ★★ y rojo después (claros sobre el nogal).
+ */
+const TIME_GOAL_COLORS: Record<TimeGoalStatus, string> = {
+  star3: '#8fdc9a',
+  star2: '#f2bf57',
+  over: '#ff8a7a',
+};
 const TILE_MAX_FONT = 22;
 const NAME_TEXT = '#2b2118';
 const SELECTED_STROKE = 0x00e5ff;
@@ -371,6 +387,8 @@ export class LevelScene extends Phaser.Scene {
   /** Dos barras ⏸ junto al reloj mientras se lee "Ver más" (Tarea 18.2). */
   private pauseIcon!: Phaser.GameObjects.Graphics;
   private lastShownSeconds = -1;
+  /** Meta de ★★★ del tablero (par de §11.3), la misma de los resultados (Tarea 18.1). */
+  private parMs = 0;
   /** Botón "Pista" del pie (Tarea 15); se actualiza su contador al usarla. */
   private hintButton!: ui.HintButton;
 
@@ -388,6 +406,8 @@ export class LevelScene extends Phaser.Scene {
     this.levelData = data;
     this.setup = data.setup;
     this.rt = new LevelRuntime(data.setup, data.cfg);
+    // Mismo par que `buildResults` (Fase 1: sin servicios nuevos).
+    this.parMs = levelParMs(data.setup, 0);
     this.onQuestion = data.onQuestion;
 
     // Tarea 16: el número de esta partida es el contador de partidas iniciadas
@@ -472,9 +492,16 @@ export class LevelScene extends Phaser.Scene {
     const seconds = Math.floor(this.rt.boardTimeMs / 1000);
     if (seconds !== this.lastShownSeconds) {
       this.lastShownSeconds = seconds;
-      this.timeText.setText(formatTime(this.rt.boardTimeMs));
-      if (this.pauseIcon.visible) this.placePauseIcon();
+      this.showClock();
     }
+  }
+
+  /** "0:32 / 0:49": tiempo y meta de ★★★, con el color de su tramo (Tarea 18.1). */
+  private showClock(): void {
+    const t = this.rt.boardTimeMs;
+    this.timeText.setText(`${formatTime(t)} / ${formatTime(this.parMs)}`);
+    this.timeText.setColor(TIME_GOAL_COLORS[timeGoalStatus(t, this.parMs)]);
+    if (this.pauseIcon.visible) this.placePauseIcon();
   }
 
   // --- Construcción de la vista -------------------------------------------
@@ -510,6 +537,7 @@ export class LevelScene extends Phaser.Scene {
     this.pauseIcon.fillStyle(Phaser.Display.Color.HexStringToColor(HUD_TEXT).color, 1);
     this.pauseIcon.fillRect(0, 0, barW, PAUSE_ICON_H);
     this.pauseIcon.fillRect(PAUSE_ICON_W - barW, 0, barW, PAUSE_ICON_H);
+    this.showClock();
   }
 
   /** Geometría del tablero a partir de los slots y el lienzo lógico. */

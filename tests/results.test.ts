@@ -7,9 +7,12 @@ import {
   buildResults,
   errorLimitFor3Stars,
   failedServiceIds,
+  levelParMs,
   missedCriterionText,
   nextStarCriterion,
+  timeGoalStatus,
 } from '../src/core/results';
+import { parTimeMs, STAR2_TIME_FACTOR } from '../src/core/scoring';
 
 const SLOTS: Slot[] = [
   [0, 0, 0],
@@ -179,3 +182,20 @@ describe('buildResults', () => {
 function parForSetup(): number {
   return 2 * (1500 + 6000 / 2) * (1 + 0.1 * (1 - 1)) + 0;
 }
+describe('Tarea 18.1: meta de tiempo en el reloj', () => {
+  it('levelParMs es el mismo par que usan los resultados', () => {
+    const setup = makeSetup();
+    expect(levelParMs(setup)).toBe(parTimeMs(2, 2, 1, 0));
+    const r = buildResults({ setup, points: 0, boardTimeMs: 0, errors: 0, failedServiceIds: [] });
+    expect(r.parMs).toBe(levelParMs(setup));
+  });
+
+  it('tramos: ★★★ hasta el par, ★★ hasta 1,6 × par y luego fuera', () => {
+    const par = 49_000;
+    expect(timeGoalStatus(0, par)).toBe('star3');
+    expect(timeGoalStatus(par, par)).toBe('star3');
+    expect(timeGoalStatus(par + 1, par)).toBe('star2');
+    expect(timeGoalStatus(STAR2_TIME_FACTOR * par, par)).toBe('star2');
+    expect(timeGoalStatus(STAR2_TIME_FACTOR * par + 1, par)).toBe('over');
+  });
+});
