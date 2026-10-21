@@ -477,11 +477,64 @@ body {
   text-align: center;
 }
 
-.results__missed {
-  margin: 0;
-  font-size: calc(100cqw * 16 / 390);
-  text-align: center;
-  color: var(--gold);
+/* Tarea 19.6: Mandy como sticker que sale por el borde izquierdo del panel
+   (contorno blanco de .mandy__art--full) y su globo de diálogo marfil. Fila fija
+   bajo las estrellas: no se va con el scroll de la lista de fallados. */
+.results__mandy {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: calc(100cqw * 10 / 390);
+  margin-left: calc(100cqw * -30 / 390);
+}
+
+.results__mandy > .results__mandy-art {
+  flex: none;
+  width: calc(100cqw * 84 / 390);
+  height: calc(100cqw * 84 / 390);
+  animation: mandy-pop 0.3s ease-out;
+}
+
+.results__bubble {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  margin: 0 0 calc(100cqw * 6 / 390);
+  padding: calc(100cqw * 9 / 390) calc(100cqw * 12 / 390);
+  border-radius: calc(100cqw * 14 / 390);
+  border: 2px solid var(--gold-dark);
+  background: var(--ivory);
+  color: var(--panel-solid);
+  font-size: calc(100cqw * 15 / 390);
+  line-height: 1.35;
+  box-shadow: 0 calc(100cqw * 4 / 390) calc(100cqw * 10 / 390) rgba(0, 0, 0, 0.45);
+}
+
+/* Piquito del globo apuntando a Mandy. */
+.results__bubble::before {
+  content: '';
+  position: absolute;
+  left: calc(100cqw * -10 / 390);
+  bottom: calc(100cqw * 14 / 390);
+  border-style: solid;
+  border-width: calc(100cqw * 7 / 390) calc(100cqw * 10 / 390) calc(100cqw * 7 / 390) 0;
+  border-color: transparent var(--gold-dark) transparent transparent;
+}
+
+.results__bubble::after {
+  content: '';
+  position: absolute;
+  left: calc(100cqw * -7 / 390);
+  bottom: calc(100cqw * 16 / 390);
+  border-style: solid;
+  border-width: calc(100cqw * 5 / 390) calc(100cqw * 8 / 390) calc(100cqw * 5 / 390) 0;
+  border-color: transparent var(--ivory) transparent transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .results__mandy > .results__mandy-art {
+    animation: none;
+  }
 }
 
 .results__hints {
@@ -878,15 +931,35 @@ body {
   margin-top: calc(100cqw * 10 / 390);
 }
 
+/* Carita de Mandy en la fila del interruptor: un poco más ancha que el círculo
+   de los niveles para que el pixel art quepa a 2× (Tarea 19.5). */
 .menu__tips-face {
+  width: calc(100cqw * 44 / 390);
+  border-radius: calc(100cqw * 10 / 390);
   overflow: hidden;
-  background: var(--ivory-soft);
+  background: var(--panel-2);
 }
 
-.menu__tips-face .mandy__svg {
-  width: 150%;
-  height: 150%;
-  margin-top: 30%;
+/* "Ver guía de Mandy otra vez" (Tarea 19.4): botón secundario debajo del
+   interruptor, del ancho de la lista, con borde latón. */
+.menu__guide-again {
+  width: 100%;
+  min-height: calc(100cqw * 44 / 390);
+  margin-top: calc(100cqw * 10 / 390);
+  box-sizing: border-box;
+  padding: 0 calc(100cqw * 12 / 390);
+  border-radius: calc(100cqw * 12 / 390);
+  border: 2px dashed var(--brass);
+  background: rgba(28, 18, 10, 0.55);
+  color: var(--ivory-soft);
+  font-family: inherit;
+  font-size: calc(100cqw * 15 / 390);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.menu__guide-again:active {
+  background: var(--panel-press);
 }
 
 .switch {
@@ -964,27 +1037,46 @@ body {
    PNG propio con fondo transparente). */
 .mandy__sticker {
   position: absolute;
-  left: calc(100cqw * 2 / 390);
+  /* Tareas 19.5–19.6: caja a la medida de la gata de 35×35 (3× en 360 px), en
+     el mismo lugar que en la 19.4, con la cola curva a la derecha. */
+  left: calc(100cqw * 8 / 390);
   bottom: calc(100% - 100cqw * 10 / 390);
-  width: calc(100cqw * 132 / 390);
-  height: calc(100cqw * 145 / 390);
+  width: calc(100cqw * 124 / 390);
+  height: calc(100cqw * 122 / 390);
   pointer-events: none;
+  /* Por encima del cuadro: así se ven sus patitas apoyadas en el borde. */
+  z-index: 1;
   animation: mandy-pop 0.22s ease-out;
 }
 
-.mandy__art,
+/* Tarea 19.4: Mandy es pixel art. La caja centra el dibujo abajo; su tamaño
+   exacto (múltiplo entero) lo pone `fitPixelArt`. Sin suavizado al escalar. */
+.mandy__art {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
 .mandy__art .mandy__svg,
 .mandy__img {
   display: block;
-  width: 100%;
-  height: 100%;
+  flex: none;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
-  object-position: bottom;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
-.mandy__art {
-  filter: drop-shadow(2.5px 0 0 #fff) drop-shadow(-2.5px 0 0 #fff) drop-shadow(0 2.5px 0 #fff)
-    drop-shadow(0 -2.5px 0 #fff) drop-shadow(0 5px 6px rgba(0, 0, 0, 0.45));
+.mandy__art--full {
+  filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff)
+    drop-shadow(0 -2px 0 #fff) drop-shadow(0 5px 6px rgba(0, 0, 0, 0.45));
+}
+
+.mandy__art--face {
+  align-items: center;
 }
 
 @keyframes mandy-pop {
@@ -1080,9 +1172,96 @@ body {
   background: var(--panel-press);
 }
 
+/* Tarea 19.5: aros que resaltan lo que Mandy explica en cada paso de la guía.
+   Por dentro aclaran lo que la capa oscurece, así lo resaltado se ve vivo. */
+.mandy__focus-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mandy__focus {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: calc(100cqw * 10 / 390);
+  border: 3px solid var(--gold);
+  box-shadow:
+    0 0 0 2px rgba(20, 11, 4, 0.55),
+    0 0 calc(100cqw * 14 / 390) calc(100cqw * 3 / 390) rgba(230, 187, 79, 0.75);
+  -webkit-backdrop-filter: brightness(1.55);
+  backdrop-filter: brightness(1.55);
+  animation: mandy-focus 1.1s ease-in-out infinite;
+}
+
+.mandy__focus--ok {
+  border-color: #7fdc8e;
+  box-shadow:
+    0 0 0 2px rgba(20, 11, 4, 0.55),
+    0 0 calc(100cqw * 14 / 390) calc(100cqw * 3 / 390) rgba(127, 220, 142, 0.7);
+}
+
+.mandy__focus--bad {
+  border-color: #ff5a4a;
+  box-shadow:
+    0 0 0 2px rgba(20, 11, 4, 0.55),
+    0 0 calc(100cqw * 14 / 390) calc(100cqw * 3 / 390) rgba(255, 90, 74, 0.7);
+}
+
+@keyframes mandy-focus {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Mandy en la tarjeta de arriba (Tarea 19.5): su carita a la izquierda */
+/* de los avisos y, en el repaso de un servicio, pequeñita en la        */
+/* esquina (contenta si acertaste, sorprendida si fallaste).            */
+/* ------------------------------------------------------------------ */
+.review-card__mandy {
+  display: flex;
+  align-items: center;
+  gap: calc(100cqw * 10 / 390);
+}
+
+.review-card__mandy > p {
+  flex: 1;
+  min-width: 0;
+}
+
+.review-card__face {
+  flex: none;
+  width: calc(100cqw * 68 / 390);
+  height: calc(100cqw * 54 / 390);
+  box-sizing: border-box;
+  border-radius: calc(100cqw * 10 / 390);
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  overflow: hidden;
+}
+
+.review-card__mandy-corner {
+  position: absolute;
+  top: calc(100cqw * 6 / 390);
+  right: calc(100cqw * 10 / 390);
+  width: calc(100cqw * 34 / 390);
+  height: calc(100cqw * 27 / 390);
+  pointer-events: none;
+}
+
+/* El nombre del servicio no pasa por debajo de la Mandy de la esquina. */
+.review-card__head--corner {
+  padding-right: calc(100cqw * 38 / 390);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mandy__sticker,
-  .mandy__next {
+  .mandy__next,
+  .mandy__focus {
     animation: none;
   }
 }

@@ -44,14 +44,16 @@ import * as ui from '../ui/game-ui';
 import {
   finishGuide,
   GUIDE_BOARD,
+  guideTargets,
   markTipSeen,
   shouldShowGuide,
   TIPS,
   tipToShow,
+  type GuideFocus,
   type MandyLine,
   type TipEvent,
 } from '../core/mandy';
-import { loadMandy, saveMandy, showMandy } from '../ui/mandy';
+import { loadMandy, saveMandy, showMandy, type FocusTarget } from '../ui/mandy';
 import { onQuestion } from '../ui/question';
 import { nextSeed } from '../ui/seed';
 
@@ -510,12 +512,18 @@ export class LevelScene extends Phaser.Scene {
   }
 
   /** Mandy habla; al cerrarse se reanuda el reloj y se llama `onClose`. */
-  private openMandy(lines: readonly MandyLine[], skippable: boolean, onClose: (skipped: boolean) => void): void {
+  private openMandy(
+    lines: readonly MandyLine[],
+    skippable: boolean,
+    onClose: (skipped: boolean) => void,
+    resolveFocus?: (focus: GuideFocus) => FocusTarget[],
+  ): void {
     this.mandyOpen = true;
     this.syncReadingPause();
     showMandy({
       lines,
       skippable,
+      resolveFocus,
       onClose: (skipped) => {
         this.mandyOpen = false;
         this.syncReadingPause();
@@ -524,14 +532,72 @@ export class LevelScene extends Phaser.Scene {
     });
   }
 
-  /** Muestra un consejo de Mandy si toca (una sola vez, con el interruptor prendido). */
-  private maybeTip(event: TipEvent): void {
+  /** Celda de una ficha en px lógicos, para que la guía la resalte (Tarea 19.5). */
+  private tileFocus(slot: number | null, tone: FocusTarget['tone']): FocusTarget[] {
+    if (slot === null) return [];
+    const view = this.views[slot];
+    if (view === undefined || view.removed) return [];
+    const logical = {
+      x: view.centerX - view.halfW,
+      y: view.centerY - view.halfH,
+      w: 2 * view.halfW,
+      h: 2 * view.halfH,
+    };
+    return [{ logical, tone }];
+  }
+
+  /**
+   * Qué resalta cada paso de la guía sobre el tablero real (Tarea 19.5). Las
+   * fichas las elige el core (`guideTargets`) con las reglas de siempre.
+   */
+  private guideFocus(focus: GuideFocus): FocusTarget[] {
+    const t = guideTargets(this.rt.g, this.setup.tiles, this.rt.present);
+    switch (focus) {
+      case 'pair':
+        return t.pair === null ? [] : t.pair.flatMap((slot) => this.tileFocus(slot, 'gold'));
+      case 'free-blocked':
+        return [...this.tileFocus(t.free, 'ok'), ...this.tileFocus(t.blocked, 'bad')];
+      case 'blockers':
+        return [
+          ...this.tileFocus(t.blocked, 'gold'),
+          ...t.blockers.flatMap((slot) => this.tileFocus(slot, 'bad')),
+        ];
+      case 'hud': {
+        // La tarjeta, el reloj (con su ⏸) y el botón de pista.
+        const b = this.timeText.getBounds();
+        const left = this.pauseIcon.visible ? Math.min(b.x, this.pauseIcon.x) : b.x;
+        const clock = { x: left, y: b.y, w: b.x + b.width - left, h: b.height };
+        return [
+          { el: document.querySelector('.review-card'), tone: 'gold' },
+          { logical: clock, tone: 'gold' },
+          { el: document.querySelector('.hint-btn'), tone: 'gold' },
+        ];
+      }
+      case 'level-1':
+        return [];
+    }
+  }
+
+  /**
+   * Muestra un consejo de Mandy si toca (una sola vez, con el interruptor
+   * prendido). Con `blockedSlot`, mientras habla quedan marcadas la ficha tocada
+   * y las que la bloquean (el rojo de la 13.4 dura solo 600 ms).
+   */
+  private maybeTip(event: TipEvent, blockedSlot?: number): void {
     if (this.mandyOpen || this.finished) return;
     const state = loadMandy();
     const tip = tipToShow(state, event);
     if (tip === null) return;
     saveMandy(markTipSeen(state, tip));
-    this.openMandy([TIPS[tip]], false, () => {});
+    if (blockedSlot === undefined) {
+      this.openMandy([TIPS[tip]], false, () => {});
+      return;
+    }
+    const around = blockers(this.rt.g, this.rt.present, blockedSlot);
+    this.openMandy([{ ...TIPS[tip], focus: 'blockers' }], false, () => {}, () => [
+      ...this.tileFocus(blockedSlot, 'gold'),
+      ...around.flatMap((slot) => this.tileFocus(slot, 'bad')),
+    ]);
   }
 
   /**
@@ -541,10 +607,15 @@ export class LevelScene extends Phaser.Scene {
   private startMandy(): void {
     const levelStart: TipEvent = { type: 'level-start', layers: this.setup.metrics.layers };
     if (this.levelData.level !== null && shouldShowGuide(loadMandy())) {
-      this.openMandy(GUIDE_BOARD, true, () => {
-        saveMandy(finishGuide(loadMandy()));
-        this.maybeTip(levelStart);
-      });
+      this.openMandy(
+        GUIDE_BOARD,
+        true,
+        () => {
+          saveMandy(finishGuide(loadMandy()));
+          this.maybeTip(levelStart);
+        },
+        (focus) => this.guideFocus(focus),
+      );
       return;
     }
     this.maybeTip(levelStart);
@@ -1174,7 +1245,7 @@ export class LevelScene extends Phaser.Scene {
         const reason = blockReason(this.rt.g, this.rt.present, result.slot);
         this.highlightBlockers(blockers(this.rt.g, this.rt.present, result.slot));
         ui.showBlockedTileHint(reason === 'above' ? 'above' : 'sides');
-        this.maybeTip({ type: 'blocked', reason: reason === 'above' ? 'above' : 'sides' });
+        this.maybeTip({ type: 'blocked', reason: reason === 'above' ? 'above' : 'sides' }, result.slot);
         return;
       }
       case 'select':

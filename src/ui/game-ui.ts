@@ -5,8 +5,17 @@
 // fijo a la ventana) y escala con unidades cqw del marco.
 import './ui.css';
 import { CARD_HEIGHT_RATIO, HINT_BAR_HEIGHT, LOGICAL_WIDTH, TOP_BAR_HEIGHT } from './layout';
-import { finishGuide, GUIDE_MENU, shouldShowGuide, withTipsEnabled } from '../core/mandy';
-import { loadMandy, mandySvg, removeMandy, saveMandy, showMandy } from './mandy';
+import {
+  finishGuide,
+  GUIDE_MENU,
+  restartGuide,
+  resultsLine,
+  shouldShowGuide,
+  withTipsEnabled,
+  type MandyExpression,
+} from '../core/mandy';
+import { loadMandy, removeMandy, saveMandy, showMandy } from './mandy';
+import { fitPixelArt, mandyArt } from './mandy-art';
 
 // Reexportadas para que la escena (LevelScene.ts) use las mismas constantes.
 export { CARD_HEIGHT_RATIO, HINT_BAR_HEIGHT, TOP_BAR_HEIGHT };
@@ -21,7 +30,7 @@ import {
   type ReviewData,
   type ReviewIconSpec,
 } from '../core/review';
-import { missedCriterionText, type ResultsData } from '../core/results';
+import type { ResultsData } from '../core/results';
 import { LEVELS, type LevelDef } from '../data/levels';
 import { iconUrl } from '../utils/icon';
 import iconMap from '../data/icon-map.json';
@@ -146,6 +155,8 @@ export function showMenu(callbacks: {
   const list = document.createElement('div');
   list.className = 'menu__list';
 
+  // Botón del nivel 1: la guía lo resalta (Tarea 19.5).
+  let level1Row: HTMLElement | null = null;
   for (const level of LEVELS) {
     const unlocked = isUnlocked(save, level.number);
     const stars = bestStarsOf(save, level.id);
@@ -183,6 +194,7 @@ export function showMenu(callbacks: {
     }
     row.appendChild(right);
 
+    if (level.number === 1) level1Row = row;
     list.appendChild(row);
   }
 
@@ -196,7 +208,8 @@ export function showMenu(callbacks: {
   tipsRow.setAttribute('role', 'switch');
   const tipsFace = document.createElement('span');
   tipsFace.className = 'menu__num menu__tips-face';
-  tipsFace.innerHTML = mandySvg('happy');
+  const faceArt = mandyArt('happy', 'face');
+  tipsFace.appendChild(faceArt);
   const tipsLabel = document.createElement('span');
   tipsLabel.className = 'menu__theme';
   tipsLabel.textContent = 'Consejos de Mandy';
@@ -221,6 +234,19 @@ export function showMenu(callbacks: {
   renderTips(loadMandy().tipsEnabled);
   tipsRow.append(tipsFace, tipsLabel, tipsSwitch);
   menu.appendChild(tipsRow);
+  fitPixelArt(faceArt);
+
+  // Tarea 19.4: la guía solo sale sola la primera vez; aquí se puede repetir
+  // (vuelve a empezar en el menú y sigue en el tablero del próximo nivel).
+  const guideAgain = document.createElement('button');
+  guideAgain.type = 'button';
+  guideAgain.className = 'menu__guide-again';
+  guideAgain.textContent = 'Ver guía de Mandy otra vez';
+  guideAgain.addEventListener('click', () => {
+    saveMandy(restartGuide(loadMandy()));
+    startMenuGuide(level1Row);
+  });
+  menu.appendChild(guideAgain);
 
   // Tarea 17: atribución de los íconos oficiales, al pie del menú y en letra
   // pequeña (ver también README.md).
@@ -232,16 +258,26 @@ export function showMenu(callbacks: {
 
   // Tarea 19.2: la primera vez, Mandy se presenta sola en el menú. "Saltar guía"
   // la termina; si no, la guía sigue en el tablero del primer nivel.
-  const mandy = loadMandy();
-  if (shouldShowGuide(mandy)) {
-    showMandy({
-      lines: GUIDE_MENU,
-      skippable: true,
-      onClose: (skipped) => {
-        if (skipped) saveMandy(finishGuide(loadMandy()));
-      },
-    });
-  }
+  if (shouldShowGuide(loadMandy())) startMenuGuide(level1Row);
+}
+
+/**
+ * Guía en el menú (Tareas 19.2 y 19.5). En "Toca el nivel 1" se resalta su botón
+ * y tocarlo ahí abre el nivel directamente (la guía sigue sobre su tablero).
+ */
+function startMenuGuide(level1Row: HTMLElement | null): void {
+  showMandy({
+    lines: GUIDE_MENU,
+    skippable: true,
+    onClose: (skipped) => {
+      if (skipped) saveMandy(finishGuide(loadMandy()));
+    },
+    resolveFocus: (focus) => {
+      const row = level1Row;
+      if (focus !== 'level-1' || row === null) return [];
+      return [{ el: row, tone: 'gold', onTap: () => row.click() }];
+    },
+  });
 }
 
 /**
@@ -375,8 +411,9 @@ const CARD_FLASH_MS = 400;
 type FlashKind = 'correct' | 'wrong' | 'notice';
 
 // Textos fijos de la tarjeta. Se usan al mostrarla y al medir su altura.
+// Tarea 19.5: mismas palabras que la guía de Mandy (fichas "levantadas y a color").
 const TUTORIAL_TEXT =
-  'Toca un ícono y luego su nombre. Solo puedes tocar las fichas brillantes; las grises están bloqueadas.';
+  'Toca un ícono y luego su nombre. Solo puedes tocar las fichas levantadas y a color; las hundidas y grises están bloqueadas.';
 const BLOCKED_PAIR_TEXT =
   'La pareja de esta ficha todavía está bloqueada. Retira otras fichas para liberarla.';
 const BLOCKED_ABOVE_TEXT = 'Esta ficha está bloqueada: tiene otra encima.';
@@ -465,26 +502,43 @@ function resetCard(card: HTMLElement): void {
   if (card === cardEl) hideReviewBackdrop();
 }
 
-/** Párrafo de la tarjeta (tutorial o aviso). */
-function messageEl(className: string, text: string): HTMLElement {
+/**
+ * Mensaje de la tarjeta (tutorial o aviso) dicho por Mandy (Tarea 19.5): su
+ * carita a la izquierda con la expresión del momento y el texto al lado.
+ */
+function mandyMessage(
+  card: HTMLElement,
+  className: string,
+  text: string,
+  expression: MandyExpression,
+): void {
+  const row = document.createElement('div');
+  row.className = 'review-card__mandy';
+  const face = mandyArt(expression, 'face');
+  face.classList.add('review-card__face');
   const p = document.createElement('p');
   p.className = className;
   p.textContent = text;
-  return p;
+  row.append(face, p);
+  card.appendChild(row);
+  fitPixelArt(face);
 }
 
 /** Tutorial al empezar el nivel; se mantiene hasta la primera respuesta. */
 export function showTutorial(): void {
   const card = reviewCard();
   resetCard(card);
-  card.appendChild(messageEl('review-card__tutorial', TUTORIAL_TEXT));
+  mandyMessage(card, 'review-card__tutorial', TUTORIAL_TEXT, 'explain');
 }
 
-/** Aviso al seleccionar una ficha libre cuya pareja está bloqueada (Tarea 12.1). */
+/**
+ * Aviso al seleccionar una ficha libre cuya pareja está bloqueada (Tarea 12.1).
+ * Los avisos son parte del juego: salen aunque los consejos de Mandy estén en No.
+ */
 export function showBlockedPairHint(): void {
   const card = reviewCard();
   resetCard(card);
-  card.appendChild(messageEl('review-card__hint', BLOCKED_PAIR_TEXT));
+  mandyMessage(card, 'review-card__hint', BLOCKED_PAIR_TEXT, 'surprised');
   flashCard('notice');
 }
 
@@ -492,8 +546,11 @@ export function showBlockedPairHint(): void {
 export function showBlockedTileHint(reason: 'above' | 'sides'): void {
   const card = reviewCard();
   resetCard(card);
-  card.appendChild(
-    messageEl('review-card__hint', reason === 'above' ? BLOCKED_ABOVE_TEXT : BLOCKED_SIDES_TEXT),
+  mandyMessage(
+    card,
+    'review-card__hint',
+    reason === 'above' ? BLOCKED_ABOVE_TEXT : BLOCKED_SIDES_TEXT,
+    'surprised',
   );
   flashCard('notice');
 }
@@ -506,7 +563,7 @@ export function showBlockedTileHint(reason: 'above' | 'sides'): void {
 export function showHint(): void {
   const card = reviewCard();
   resetCard(card);
-  card.appendChild(messageEl('review-card__hint', HINT_TEXT));
+  mandyMessage(card, 'review-card__hint', HINT_TEXT, 'explain');
   flashCard('notice');
 }
 
@@ -534,16 +591,16 @@ export function fitCardToLevel(serviceIds: readonly string[]): number {
   const measure = (): void => {
     maxH = Math.max(maxH, probe.offsetHeight);
   };
-  const messages: Array<[string, string]> = [
-    ['review-card__tutorial', TUTORIAL_TEXT],
-    ['review-card__hint', BLOCKED_PAIR_TEXT],
-    ['review-card__hint', BLOCKED_ABOVE_TEXT],
-    ['review-card__hint', BLOCKED_SIDES_TEXT],
-    ['review-card__hint', HINT_TEXT],
+  const messages: Array<[string, string, MandyExpression]> = [
+    ['review-card__tutorial', TUTORIAL_TEXT, 'explain'],
+    ['review-card__hint', BLOCKED_PAIR_TEXT, 'surprised'],
+    ['review-card__hint', BLOCKED_ABOVE_TEXT, 'surprised'],
+    ['review-card__hint', BLOCKED_SIDES_TEXT, 'surprised'],
+    ['review-card__hint', HINT_TEXT, 'explain'],
   ];
-  for (const [className, text] of messages) {
+  for (const [className, text, expression] of messages) {
     resetCard(probe);
-    probe.appendChild(messageEl(className, text));
+    mandyMessage(probe, className, text, expression);
     measure();
   }
   for (const id of [...new Set(serviceIds)].sort()) {
@@ -591,8 +648,15 @@ function fillReview(card: HTMLElement, data: ReviewData): void {
   const scroll = document.createElement('div');
   scroll.className = 'review-card__scroll';
 
+  // Tarea 19.5: Mandy pequeñita en la esquina, contenta o sorprendida; el ícono
+  // del servicio sigue siendo el protagonista de la tarjeta.
+  const corner = mandyArt(data.correct ? 'happy' : 'surprised', 'face');
+  corner.classList.add('review-card__mandy-corner');
+  card.appendChild(corner);
+  fitPixelArt(corner);
+
   const head = document.createElement('div');
-  head.className = 'review-card__head';
+  head.className = 'review-card__head review-card__head--corner';
   head.appendChild(iconEl(data.serviceId, data.icon));
   // Nombre y, debajo, la sigla (Tarea 13.2).
   const names = document.createElement('div');
@@ -841,6 +905,19 @@ export function showResults(data: ResultsData, callbacks: ResultsCallbacks): voi
   starsEl.appendChild(dim);
   dialog.appendChild(starsEl);
 
+  // Tarea 19.6: Mandy sale como sticker por el borde del panel y explica, en su
+  // globo, qué faltó para la siguiente estrella (o felicita con ★★★).
+  const say = resultsLine(data);
+  const mandyRow = document.createElement('div');
+  mandyRow.className = 'results__mandy';
+  const sticker = mandyArt(say.expression);
+  sticker.classList.add('results__mandy-art');
+  const bubble = document.createElement('p');
+  bubble.className = 'results__bubble';
+  bubble.textContent = say.text;
+  mandyRow.append(sticker, bubble);
+  dialog.appendChild(mandyRow);
+
   const body = document.createElement('div');
   body.className = 'results__body';
 
@@ -854,13 +931,6 @@ export function showResults(data: ResultsData, callbacks: ResultsCallbacks): voi
   hints.className = 'results__hints';
   hints.textContent = `Pistas usadas: ${data.hintsUsed}`;
   body.appendChild(hints);
-
-  if (data.missed !== null) {
-    const missed = document.createElement('p');
-    missed.className = 'results__missed';
-    missed.textContent = missedCriterionText(data.missed);
-    body.appendChild(missed);
-  }
 
   const failTitle = document.createElement('p');
   failTitle.className = 'results__fail';
@@ -921,4 +991,5 @@ export function showResults(data: ResultsData, callbacks: ResultsCallbacks): voi
 
   dialog.appendChild(footer);
   uiRoot.appendChild(ov);
+  fitPixelArt(sticker);
 }
